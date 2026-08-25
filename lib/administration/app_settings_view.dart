@@ -1,9 +1,8 @@
-// FILE: lib/administration/app_settings_view.dart (CLEANED VERSION)
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../pharoah_manager.dart';
 import 'architect_control_view.dart';
+import 'live_web_view.dart';
 
 class AppSettingsView extends StatefulWidget {
   const AppSettingsView({super.key});
@@ -30,11 +29,15 @@ class _AppSettingsViewState extends State<AppSettingsView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- SECTION 1: THE ARCHITECT GATEWAY (Advanced Controls) ---
+            // --- SECTION 1: THE ARCHITECT GATEWAY ---
             _buildArchitectGateway(context),
+            const SizedBox(height: 20),
+
+            // --- SECTION 2: LIVE WEB GATEWAY (NAYA BUTTON) ---
+            _buildLiveWebGateway(context),
             const SizedBox(height: 25),
             
-            // --- SECTION 2: SYSTEM INFORMATION CARD (Premium Aesthetic) ---
+            // --- SECTION 3: SYSTEM INFORMATION CARD ---
             _buildSystemInfoCard(ph),
           ],
         ),
@@ -42,7 +45,7 @@ class _AppSettingsViewState extends State<AppSettingsView> {
     );
   }
 
-  // Architect Control Center में जाने का खूबसूरत गेटवे कार्ड
+  // Architect Control Center Gateway Card
   Widget _buildArchitectGateway(BuildContext context) {
     return InkWell(
       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (c) => const ArchitectControlView())),
@@ -78,7 +81,43 @@ class _AppSettingsViewState extends State<AppSettingsView> {
     );
   }
 
-  // सिस्टम की जानकारी दिखाने वाला क्लीन कार्ड (ताकि स्क्रीन खाली न लगे)
+  // NAYA: Live Web Gateway Card
+  Widget _buildLiveWebGateway(BuildContext context) {
+    return InkWell(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (c) => const LiveWebView())),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(25),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF004D40), Color(0xFF00796B)],
+            begin: Alignment.topLeft, end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [BoxShadow(color: Colors.teal.withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8))],
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.language_rounded, color: Colors.cyanAccent, size: 45),
+            SizedBox(width: 20),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("LIVE WEB ACCESS", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                  SizedBox(height: 5),
+                  Text("Toggle Web Server, browser billing & iPad connectivity", style: TextStyle(color: Colors.white70, fontSize: 11)),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // System Information Card
   Widget _buildSystemInfoCard(PharoahManager ph) {
     return Container(
       width: double.infinity,
