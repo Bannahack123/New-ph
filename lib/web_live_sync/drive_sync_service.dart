@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../pharoah_manager.dart';
 
 class DriveSyncService {
-  static const String defaultEndpoint = "https://script.google.com/macros/s/AKfycbx45A7UP0Jt4S0_wZT7w7XTE1HiK9YV4lTdyGIhnTA_OUDTh0L-JuUiznQPaXRv_dbtSw/exec";
+  static const String defaultEndpoint = "https://script.google.com/macros/s/AKfycbydna8KbdL_rqK-k8OuTfg0hoUBXEHfJWiaMX6GD23Oy9cXPemMUWYD5oPcNXaCvGTetQ/exec";
 
   // Google Drive par local files push karna
   static Future<bool> pushDataToCloud(PharoahManager ph) async {
@@ -16,7 +16,6 @@ class DriveSyncService {
       final workingDir = await ph.getWorkingPath();
       if (workingDir.isEmpty) return false;
 
-      // Sabhi core files ko read karna
       List<String> fileNames = [
         'meds.json', 'parts.json', 'sales.json', 'purc.json',
         'bats.json', 'vouc.json', 's_challan.json', 'p_challan.json',
