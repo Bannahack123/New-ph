@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../pharoah_manager.dart';
 
 class DriveSyncService {
-  static const String defaultEndpoint = "https://script.google.com/macros/s/AKfycbydna8KbdL_rqK-k8OuTfg0hoUBXEHfJWiaMX6GD23Oy9cXPemMUWYD5oPcNXaCvGTetQ/exec";
+  static const String defaultEndpoint = "https://script.google.com/macros/s/AKfycbywBMCGo9f9cJ8PBmVhM5f0m2Wfxct7QH7PESBfCh3rQsoza71ID9WU7fe200QKcXYlFw/exec";
 
   // Google Drive par local files push karna
   static Future<bool> pushDataToCloud(PharoahManager ph) async {
