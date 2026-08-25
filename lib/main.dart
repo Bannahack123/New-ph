@@ -1,6 +1,5 @@
-// FILE: lib/main.dart
-
-import 'dart:ui'; // NAYA: Blur effect ke liye
+import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'pharoah_manager.dart';
@@ -9,6 +8,7 @@ import 'gateway/multi_setup_view.dart';
 import 'gateway/company_list_screen.dart';
 import 'gateway/company_control_panel.dart';
 import 'main_control_shell.dart';
+import 'web_live_sync/web_portal_gateway.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,27 +27,25 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-// WidgetsBindingObserver se hum phone ke minimize/maximize hone par nazar rakhenge
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
-  
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this); // Lifecycle monitor shuru
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this); // Lifecycle monitor band
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
-  // --- APP BACKGROUND LOCK LOGIC ---
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final ph = Provider.of<PharoahManager>(context, listen: false);
-    // Jaise hi app background mein jaye, ise lock kar do (Instant Lock)
-    ph.handleAppLifecycle(state);
+    if (!kIsWeb) {
+      final ph = Provider.of<PharoahManager>(context, listen: false);
+      ph.handleAppLifecycle(state);
+    }
   }
 
   @override
@@ -73,17 +71,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               foregroundColor: Colors.white,
             ),
           ),
-          // --- GLOBAL TOUCH LISTENER ---
-          // Poori app ko Listener mein lapeta hai taaki har touch par timer reset ho
           home: Listener(
             onPointerDown: (_) => ph.resetInactivityTimer(),
             onPointerMove: (_) => ph.resetInactivityTimer(),
             child: Stack(
               children: [
-                const AppGateway(), // Asli App niche chalegi
-                
-                // --- THE "CURTAIN" OVERLAY (PARDA) ---
-                if (ph.isAppLocked && ph.isAdminAuthenticated)
+                const AppGateway(),
+                if (!kIsWeb && ph.isAppLocked && ph.isAdminAuthenticated)
                   const LockOverlayParda(),
               ],
             ),
@@ -94,44 +88,36 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   }
 }
 
-// ===========================================================================
-// 🛡️ APP GATEWAY: SMART FLOW (Selection -> Login -> Panel)
-// ===========================================================================
 class AppGateway extends StatelessWidget {
   const AppGateway({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // 🌐 WEB BROWSER DETECT: Agar Web par open hai toh direct Web Portal Station open hoga
+    if (kIsWeb) {
+      return const WebPortalGateway();
+    }
+
+    // 📱 MOBILE / APK ENVIRONMENT: Normal App flow
     final ph = Provider.of<PharoahManager>(context);
 
-    // 1. Initial Run: Setup Screen
     if (ph.companiesRegistry.isEmpty) {
       return const MultiSetupView(isFirstRun: true);
     }
-    
-    // 2. Company not selected: List Screen
     if (ph.activeCompany == null) {
       return const CompanyListScreen();
     }
-
-    // 3. SECURE GATE: Login pehle (Dashboard/Control Panel se pehle)
     if (!ph.isAdminAuthenticated) {
       return const LoginView();
     }
-
-    // 4. Authenticated: Control Panel (Where FY Selection happens)
     if (ph.currentFY.isEmpty) {
       return const CompanyControlPanelView();
     }
 
-    // 5. Final: All Good -> Main ERP Shell
     return const MainControlShell();
   }
 }
 
-// ===========================================================================
-// 🌫️ LOCK OVERLAY PARDA: GLASSMORPHISM EFFECT
-// ===========================================================================
 class LockOverlayParda extends StatelessWidget {
   const LockOverlayParda({super.key});
 
@@ -140,13 +126,13 @@ class LockOverlayParda extends StatelessWidget {
     final ph = Provider.of<PharoahManager>(context, listen: false);
 
     return Scaffold(
-      backgroundColor: Colors.transparent, // Niche ka data dikhne ke liye
+      backgroundColor: Colors.transparent,
       body: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10), // Blur effect
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
           width: double.infinity,
           height: double.infinity,
-          color: Colors.black.withOpacity(0.6), // Halka kala rang
+          color: Colors.black.withOpacity(0.6),
           child: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -156,8 +142,6 @@ class LockOverlayParda extends StatelessWidget {
                 const Text("SESSION LOCKED", style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
                 Text("Inactivity for ${ph.activeCompany?.autoLockMinutes} minutes", style: const TextStyle(color: Colors.white70, fontSize: 12)),
                 const SizedBox(height: 40),
-                
-                // UNLOCK BUTTON
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue.shade700, 
@@ -165,17 +149,12 @@ class LockOverlayParda extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))
                   ),
-                  onPressed: () => ph.authenticateBiometric(), // Fingerprint scan trigger
+                  onPressed: () => ph.authenticateBiometric(),
                   icon: const Icon(Icons.fingerprint),
                   label: const Text("TAP TO UNLOCK", style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
-                
                 TextButton(
-                  onPressed: () {
-                    // Password fallback ke liye hum login status false karke 
-                    // user ko wapas login screen par phek sakte hain
-                    ph.authenticateAdmin(false);
-                  }, 
+                  onPressed: () => ph.authenticateAdmin(false),
                   child: const Text("Use Password Instead", style: TextStyle(color: Colors.white54))
                 )
               ],
