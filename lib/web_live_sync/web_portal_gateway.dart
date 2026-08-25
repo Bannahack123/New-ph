@@ -1,7 +1,6 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'drive_sync_service.dart';
+import 'package:provider/provider.dart';
+import 'pharoah_web_manager.dart';
 
 class WebPortalGateway extends StatefulWidget {
   const WebPortalGateway({super.key});
@@ -11,76 +10,20 @@ class WebPortalGateway extends StatefulWidget {
 }
 
 class _WebPortalGatewayState extends State<WebPortalGateway> {
-  bool isLoading = true;
-  bool isAccessGranted = false;
-  String errorMessage = "";
-  
-  String companyName = "";
-  String financialYear = "";
-
   @override
   void initState() {
     super.initState();
-    _fetchCloudData();
-  }
-
-  // Google Drive se live connection verify karna
-  Future<void> _fetchCloudData() async {
-    setState(() {
-      isLoading = true;
-      errorMessage = "";
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<PharoahWebManager>(context, listen: false).checkCloudHandshake();
     });
-
-    try {
-      final response = await http.post(
-        Uri.parse(DriveSyncService.defaultEndpoint),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "action": "PULL_DATA",
-          "companyId": "DEFAULT_COMPANY",
-          "fy": "2026-27"
-        }),
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 302) {
-        var res = jsonDecode(response.body);
-        if (res['status'] == "SUCCESS" && res['data'] != null && res['data'].isNotEmpty) {
-          var files = res['data'];
-
-          if (files.containsKey('profile.json')) {
-            var profile = jsonDecode(files['profile.json']);
-            companyName = profile['name'] ?? "PHAROAH STORE";
-          } else {
-            companyName = "PHAROAH STORE";
-          }
-          financialYear = "2026-27";
-
-          setState(() {
-            isAccessGranted = true;
-            isLoading = false;
-          });
-          return;
-        }
-      }
-
-      setState(() {
-        isAccessGranted = false;
-        errorMessage = "No active company broadcast found. Please turn ON 'Live Web' in your Pharoah Mobile App Settings.";
-        isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        isAccessGranted = false;
-        errorMessage = "Connection error. Please check your internet or App sync status.";
-        isLoading = false;
-      });
-    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final webPh = Provider.of<PharoahWebManager>(context);
+
     // 1. LOADING STATE
-    if (isLoading) {
+    if (webPh.isLoading) {
       return const Scaffold(
         backgroundColor: Color(0xFF0F172A),
         body: Center(
@@ -96,8 +39,8 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
       );
     }
 
-    // 2. SCENARIO A: TOGGLE SWITCH OFF (RESTRICTED LOCK)
-    if (!isAccessGranted) {
+    // 2. SCENARIO A: TOGGLE SWITCH OFF (RED ACCESS RESTRICTED SCREEN)
+    if (!webPh.isLiveActive) {
       return Scaffold(
         backgroundColor: const Color(0xFF0F172A),
         body: Center(
@@ -122,7 +65,7 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  errorMessage,
+                  webPh.errorMessage,
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: Colors.white70, fontSize: 12, height: 1.5),
                 ),
@@ -132,7 +75,7 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
                   height: 48,
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent, foregroundColor: Colors.black),
-                    onPressed: _fetchCloudData,
+                    onPressed: () => webPh.checkCloudHandshake(),
                     icon: const Icon(Icons.refresh_rounded),
                     label: const Text("RETRY CONNECTION", style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
@@ -171,7 +114,7 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: Colors.white70),
             tooltip: "Refresh Cloud Data",
-            onPressed: _fetchCloudData,
+            onPressed: () => webPh.checkCloudHandshake(),
           ),
         ],
       ),
@@ -181,7 +124,6 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Hero Welcome Card
               Container(
                 width: 650,
                 padding: const EdgeInsets.all(40),
@@ -231,14 +173,14 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
                     const SizedBox(height: 25),
                     const Divider(color: Colors.white10),
                     const SizedBox(height: 15),
-                    if (companyName.isNotEmpty)
+                    if (webPh.companyName.isNotEmpty)
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           const Icon(Icons.storefront_rounded, size: 18, color: Colors.cyanAccent),
                           const SizedBox(width: 8),
                           Text(
-                            companyName.toUpperCase(),
+                            webPh.companyName.toUpperCase(),
                             style: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold, fontSize: 14),
                           ),
                         ],

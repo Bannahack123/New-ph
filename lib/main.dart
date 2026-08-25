@@ -8,13 +8,17 @@ import 'gateway/multi_setup_view.dart';
 import 'gateway/company_list_screen.dart';
 import 'gateway/company_control_panel.dart';
 import 'main_control_shell.dart';
+import 'web_live_sync/pharoah_web_manager.dart';
 import 'web_live_sync/web_portal_gateway.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => PharoahManager(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => PharoahManager()),
+        ChangeNotifierProvider(create: (_) => PharoahWebManager()),
+      ],
       child: const MyApp(),
     ),
   );
@@ -62,7 +66,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             cardTheme: const CardThemeData(
               elevation: 3,
               surfaceTintColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(15))),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
             ),
             appBarTheme: const AppBarTheme(
               centerTitle: false, 
@@ -72,8 +76,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             ),
           ),
           home: Listener(
-            onPointerDown: (_) => ph.resetInactivityTimer(),
-            onPointerMove: (_) => ph.resetInactivityTimer(),
+            onPointerDown: (_) { if (!kIsWeb) ph.resetInactivityTimer(); },
+            onPointerMove: (_) { if (!kIsWeb) ph.resetInactivityTimer(); },
             child: Stack(
               children: [
                 const AppGateway(),
@@ -93,12 +97,12 @@ class AppGateway extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 🌐 WEB BROWSER DETECT: Agar Web par open hai toh direct Web Portal Station open hoga
+    // 🌐 WEB BROWSER: Direct isolated Web Portal Gateway load hoga
     if (kIsWeb) {
       return const WebPortalGateway();
     }
 
-    // 📱 MOBILE / APK ENVIRONMENT: Normal App flow
+    // 📱 MOBILE / APK ENVIRONMENT: Original flow unchanged
     final ph = Provider.of<PharoahManager>(context);
 
     if (ph.companiesRegistry.isEmpty) {
