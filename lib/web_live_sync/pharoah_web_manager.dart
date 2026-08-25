@@ -4,55 +4,42 @@ import 'package:http/http.dart' as http;
 import 'drive_sync_service.dart';
 
 class PharoahWebManager with ChangeNotifier {
-  bool isLoading = true;
+  bool isLoading = false;
+  bool isAuthenticated = false;
   bool isLiveActive = false;
   String errorMessage = "";
+  String userEmail = "";
   
   String companyName = "";
-  String companyId = "";
-  String financialYear = "";
+  String financialYear = "2026-27";
   Map<String, dynamic> companyProfile = {};
-  
-  List<dynamic> sales = [];
-  List<dynamic> medicines = [];
-  List<dynamic> parties = [];
 
-  // Google Drive se cloud data verify aur fetch karna
-  Future<void> checkCloudHandshake() async {
+  // Google Login aur Drive Data Pull (CORS Safe GET Request)
+  Future<void> loginAndConnectDrive(String email) async {
     isLoading = true;
     errorMessage = "";
+    userEmail = email;
     notifyListeners();
 
     try {
-      final response = await http.post(
-        Uri.parse(DriveSyncService.defaultEndpoint),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "action": "PULL_DATA",
-          "companyId": "DEFAULT_COMPANY",
-          "fy": "2026-27"
-        }),
-      );
+      // Browser me CORS avoid karne ke liye GET request use hoti hai
+      final uri = Uri.parse("${DriveSyncService.defaultEndpoint}?action=PULL_DATA&companyId=DEFAULT_COMPANY&fy=$financialYear");
+      final response = await http.get(uri);
 
-      if (response.statusCode == 200 || response.statusCode == 302) {
+      if (response.statusCode == 200) {
         var res = jsonDecode(response.body);
-        if (res['status'] == "SUCCESS" && res['data'] != null && res['data'].isNotEmpty) {
+        if (res['status'] == "SUCCESS" && res['data'] != null && (res['hasData'] == true || res['data'].isNotEmpty)) {
           var files = res['data'];
 
           if (files.containsKey('profile.json')) {
             companyProfile = jsonDecode(files['profile.json']);
             companyName = companyProfile['name'] ?? "PHAROAH STORE";
-            companyId = companyProfile['id'] ?? "";
           } else {
             companyName = "PHAROAH STORE";
           }
-          financialYear = "2026-27";
-
-          if (files.containsKey('sales.json')) sales = jsonDecode(files['sales.json']);
-          if (files.containsKey('meds.json')) medicines = jsonDecode(files['meds.json']);
-          if (files.containsKey('parts.json')) parties = jsonDecode(files['parts.json']);
 
           isLiveActive = true;
+          isAuthenticated = true;
           isLoading = false;
           notifyListeners();
           return;
@@ -60,14 +47,23 @@ class PharoahWebManager with ChangeNotifier {
       }
 
       isLiveActive = false;
-      errorMessage = "No active company broadcast found. Please turn ON 'Live Web' in your Pharoah Mobile App Settings.";
+      isAuthenticated = false;
+      errorMessage = "No active company broadcast found for this account. Please turn ON 'Live Web' in your Pharoah Mobile App and tap 'Sync Now'.";
       isLoading = false;
       notifyListeners();
     } catch (e) {
       isLiveActive = false;
-      errorMessage = "Cloud connection error. Check internet or Mobile App sync status.";
+      isAuthenticated = false;
+      errorMessage = "Connection error. Make sure Google Drive script is deployed with access 'Anyone'.";
       isLoading = false;
       notifyListeners();
     }
+  }
+
+  void logout() {
+    isAuthenticated = false;
+    isLiveActive = false;
+    userEmail = "";
+    notifyListeners();
   }
 }
