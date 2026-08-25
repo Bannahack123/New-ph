@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:intl/intl.dart';
 import 'drive_sync_service.dart';
 
 class WebPortalGateway extends StatefulWidget {
@@ -16,13 +15,8 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
   bool isAccessGranted = false;
   String errorMessage = "";
   
-  Map<String, dynamic> companyProfile = {};
-  List<dynamic> salesList = [];
-  List<dynamic> medicinesList = [];
-  List<dynamic> partiesList = [];
-
-  final passwordC = TextEditingController();
-  bool isAuthenticated = false;
+  String companyName = "";
+  String financialYear = "";
 
   @override
   void initState() {
@@ -30,7 +24,7 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
     _fetchCloudData();
   }
 
-  // Google Drive se live data pull karna
+  // Google Drive se live connection verify karna
   Future<void> _fetchCloudData() async {
     setState(() {
       isLoading = true;
@@ -43,7 +37,7 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "action": "PULL_DATA",
-          "companyId": "DEFAULT_COMPANY", // Dynamic per deployment
+          "companyId": "DEFAULT_COMPANY",
           "fy": "2026-27"
         }),
       );
@@ -53,15 +47,13 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
         if (res['status'] == "SUCCESS" && res['data'] != null && res['data'].isNotEmpty) {
           var files = res['data'];
 
-          if (files.containsKey('sales.json')) {
-            salesList = jsonDecode(files['sales.json']);
+          if (files.containsKey('profile.json')) {
+            var profile = jsonDecode(files['profile.json']);
+            companyName = profile['name'] ?? "PHAROAH STORE";
+          } else {
+            companyName = "PHAROAH STORE";
           }
-          if (files.containsKey('meds.json')) {
-            medicinesList = jsonDecode(files['meds.json']);
-          }
-          if (files.containsKey('parts.json')) {
-            partiesList = jsonDecode(files['parts.json']);
-          }
+          financialYear = "2026-27";
 
           setState(() {
             isAccessGranted = true;
@@ -73,7 +65,7 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
 
       setState(() {
         isAccessGranted = false;
-        errorMessage = "No active company broadcast found. Please turn ON 'Live Web' in your Mobile App Settings.";
+        errorMessage = "No active company broadcast found. Please turn ON 'Live Web' in your Pharoah Mobile App Settings.";
         isLoading = false;
       });
     } catch (e) {
@@ -87,6 +79,7 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
 
   @override
   Widget build(BuildContext context) {
+    // 1. LOADING STATE
     if (isLoading) {
       return const Scaffold(
         backgroundColor: Color(0xFF0F172A),
@@ -103,7 +96,7 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
       );
     }
 
-    // SCENARIO 1: SWITCH OFF YA DATA NA MILNE PAR (RED LOCK SCREEN)
+    // 2. SCENARIO A: TOGGLE SWITCH OFF (RESTRICTED LOCK)
     if (!isAccessGranted) {
       return Scaffold(
         backgroundColor: const Color(0xFF0F172A),
@@ -111,7 +104,7 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
           child: Container(
             width: 480,
             margin: const EdgeInsets.all(20),
-            padding: const EdgeInsets.all(30),
+            padding: const EdgeInsets.all(35),
             decoration: BoxDecoration(
               color: const Color(0xFF1E293B),
               borderRadius: BorderRadius.circular(25),
@@ -121,7 +114,7 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.lock_person_rounded, size: 70, color: Colors.redAccent),
+                const Icon(Icons.lock_person_rounded, size: 75, color: Colors.redAccent),
                 const SizedBox(height: 20),
                 const Text(
                   "ACCESS RESTRICTED",
@@ -151,157 +144,110 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
       );
     }
 
-    // SCENARIO 2: PASSWORD LOGIN SCREEN
-    if (!isAuthenticated) {
-      return Scaffold(
-        backgroundColor: const Color(0xFF0F172A),
-        body: Center(
-          child: Container(
-            width: 440,
-            padding: const EdgeInsets.all(30),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E293B),
-              borderRadius: BorderRadius.circular(25),
-              border: Border.all(color: Colors.cyanAccent.withOpacity(0.3)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.storefront_rounded, size: 50, color: Colors.cyanAccent),
-                const SizedBox(height: 15),
-                const Text("PHAROAH WEB STATION", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1)),
-                const SizedBox(height: 5),
-                const Text("Enter password to unlock workstation", style: TextStyle(color: Colors.white54, fontSize: 11)),
-                const SizedBox(height: 25),
-                TextField(
-                  controller: passwordC,
-                  obscureText: true,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
-                    labelText: "Security Password",
-                    labelStyle: TextStyle(color: Colors.white54),
-                    prefixIcon: Icon(Icons.key, color: Colors.cyanAccent),
-                    filled: true,
-                    fillColor: Colors.black26,
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 25),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent, foregroundColor: Colors.black),
-                    onPressed: () {
-                      if (passwordC.text.isNotEmpty) {
-                        setState(() => isAuthenticated = true);
-                      }
-                    },
-                    child: const Text("UNLOCK WORKSTATION", style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    // SCENARIO 3: LIVE WEB DASHBOARD
-    double totalSalesAmt = salesList.fold(0.0, (sum, s) => sum + (s['totalAmount'] ?? 0.0));
-
+    // 3. SCENARIO B: TOGGLE ON -> DIRECT MAIN DASHBOARD (WELCOME TO PHAROAH ERP)
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
       appBar: AppBar(
-        title: const Text("PHAROAH WEB WORKSTATION", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        title: const Text("PHAROAH WEB WORKSTATION", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Colors.white)),
         backgroundColor: const Color(0xFF1E1B4B),
-        foregroundColor: Colors.white,
+        elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.sync_rounded),
-            tooltip: "Refresh Data",
-            onPressed: _fetchCloudData,
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.green.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.greenAccent),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.circle, color: Colors.greenAccent, size: 8),
+                SizedBox(width: 6),
+                Text("LIVE CLOUD ACTIVE", style: TextStyle(color: Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.bold)),
+              ],
+            ),
           ),
           IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: "Lock Station",
-            onPressed: () => setState(() => isAuthenticated = false),
+            icon: const Icon(Icons.refresh_rounded, color: Colors.white70),
+            tooltip: "Refresh Cloud Data",
+            onPressed: _fetchCloudData,
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(25),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // KPI Summary Cards
-            Row(
-              children: [
-                _kpiCard("TOTAL INVOICES", "${salesList.length}", Icons.receipt_long, Colors.blueAccent),
-                const SizedBox(width: 15),
-                _kpiCard("TOTAL SALES VALUE", "₹${totalSalesAmt.toStringAsFixed(0)}", Icons.currency_rupee, Colors.greenAccent),
-                const SizedBox(width: 15),
-                _kpiCard("ACTIVE PRODUCTS", "${medicinesList.length}", Icons.inventory_2, Colors.orangeAccent),
-              ],
-            ),
-            const SizedBox(height: 30),
-
-            // Live Sales Register on Web
-            const Text("LIVE INVOICE FEED (GOOGLE DRIVE SYNCED)", style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1)),
-            const SizedBox(height: 15),
-
-            Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E293B),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white10),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(30),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Hero Welcome Card
+              Container(
+                width: 650,
+                padding: const EdgeInsets.all(40),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF1E1B4B), Color(0xFF1E293B)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(color: Colors.cyanAccent.withOpacity(0.4), width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.cyanAccent.withOpacity(0.1),
+                      blurRadius: 30,
+                      offset: const Offset(0, 10),
+                    )
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.cyanAccent.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.stars_rounded, size: 70, color: Colors.cyanAccent),
+                    ),
+                    const SizedBox(height: 25),
+                    const Text(
+                      "Welcome to Pharoah ERP",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      "Your Real-Time Cloud Workstation is Active & Synced.",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white70, fontSize: 13),
+                    ),
+                    const SizedBox(height: 25),
+                    const Divider(color: Colors.white10),
+                    const SizedBox(height: 15),
+                    if (companyName.isNotEmpty)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.storefront_rounded, size: 18, color: Colors.cyanAccent),
+                          const SizedBox(width: 8),
+                          Text(
+                            companyName.toUpperCase(),
+                            style: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold, fontSize: 14),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
               ),
-              child: ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: salesList.length,
-                separatorBuilder: (c, i) => const Divider(color: Colors.white10, height: 1),
-                itemBuilder: (c, i) {
-                  final s = salesList[i];
-                  return ListTile(
-                    leading: const CircleAvatar(backgroundColor: Colors.white10, child: Icon(Icons.receipt, color: Colors.cyanAccent, size: 20)),
-                    title: Text(s['partyName'] ?? 'CASH', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    subtitle: Text("Bill: ${s['billNo']} | Items: ${(s['items'] as List?)?.length ?? 0}", style: const TextStyle(color: Colors.white54, fontSize: 11)),
-                    trailing: Text("₹${s['totalAmount']}", style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 15)),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _kpiCard(String label, String value, IconData icon, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1E293B),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: color.withOpacity(0.3)),
-        ),
-        child: Row(
-          children: [
-            Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle), child: Icon(icon, color: color, size: 24)),
-            const SizedBox(width: 15),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(label, style: const TextStyle(color: Colors.white38, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-                  const SizedBox(height: 4),
-                  Text(value, style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.w900)),
-                ],
-              ),
-            )
-          ],
+            ],
+          ),
         ),
       ),
     );
