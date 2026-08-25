@@ -8,17 +8,21 @@ import 'gateway/multi_setup_view.dart';
 import 'gateway/company_list_screen.dart';
 import 'gateway/company_control_panel.dart';
 import 'main_control_shell.dart';
-import 'web_live_sync/pharoah_web_manager.dart';
-import 'web_live_sync/web_portal_gateway.dart';
+import 'web_live_sync/web_app_root.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 🌐 WEB BROWSER: 100% Dedicated Isolated Web App (No Mobile File Touch)
+  if (kIsWeb) {
+    runApp(const WebAppRoot());
+    return;
+  }
+
+  // 📱 MOBILE / APK: Original untouched PharoahManager
   runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => PharoahManager()),
-        ChangeNotifierProvider(create: (_) => PharoahWebManager()),
-      ],
+    ChangeNotifierProvider(
+      create: (_) => PharoahManager(),
       child: const MyApp(),
     ),
   );
@@ -46,10 +50,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (!kIsWeb) {
-      final ph = Provider.of<PharoahManager>(context, listen: false);
-      ph.handleAppLifecycle(state);
-    }
+    final ph = Provider.of<PharoahManager>(context, listen: false);
+    ph.handleAppLifecycle(state);
   }
 
   @override
@@ -66,7 +68,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             cardTheme: const CardThemeData(
               elevation: 3,
               surfaceTintColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(15))),
             ),
             appBarTheme: const AppBarTheme(
               centerTitle: false, 
@@ -76,12 +78,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             ),
           ),
           home: Listener(
-            onPointerDown: (_) { if (!kIsWeb) ph.resetInactivityTimer(); },
-            onPointerMove: (_) { if (!kIsWeb) ph.resetInactivityTimer(); },
+            onPointerDown: (_) => ph.resetInactivityTimer(),
+            onPointerMove: (_) => ph.resetInactivityTimer(),
             child: Stack(
               children: [
                 const AppGateway(),
-                if (!kIsWeb && ph.isAppLocked && ph.isAdminAuthenticated)
+                if (ph.isAppLocked && ph.isAdminAuthenticated)
                   const LockOverlayParda(),
               ],
             ),
@@ -97,12 +99,6 @@ class AppGateway extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 🌐 WEB BROWSER: Direct isolated Web Portal Gateway load hoga
-    if (kIsWeb) {
-      return const WebPortalGateway();
-    }
-
-    // 📱 MOBILE / APK ENVIRONMENT: Original flow unchanged
     final ph = Provider.of<PharoahManager>(context);
 
     if (ph.companiesRegistry.isEmpty) {
