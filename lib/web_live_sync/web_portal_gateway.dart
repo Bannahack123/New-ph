@@ -10,134 +10,18 @@ class WebPortalGateway extends StatefulWidget {
 }
 
 class _WebPortalGatewayState extends State<WebPortalGateway> {
-  final emailController = TextEditingController();
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<PharoahWebManager>(context, listen: false).checkCloudHandshake();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final webPh = Provider.of<PharoahWebManager>(context);
 
-    // 1. LOADING SCREEN
-    if (webPh.isLoading) {
-      return const Scaffold(
-        backgroundColor: Color(0xFF0F172A),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(color: Colors.cyanAccent),
-              SizedBox(height: 20),
-              Text("Connecting to Google Drive Cloud...", style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
-            ],
-          ),
-        ),
-      );
-    }
-
-    // 2. SCENARIO 1: SIGN IN WITH GOOGLE LANDING PAGE (AUTHENTICATION FIRST)
-    if (!webPh.isAuthenticated) {
-      return Scaffold(
-        backgroundColor: const Color(0xFF0F172A),
-        body: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Container(
-              width: 480,
-              padding: const EdgeInsets.all(35),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E293B),
-                borderRadius: BorderRadius.circular(25),
-                border: Border.all(color: Colors.cyanAccent.withOpacity(0.3), width: 1.5),
-                boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 25)],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(15),
-                    decoration: BoxDecoration(color: Colors.cyanAccent.withOpacity(0.1), shape: BoxShape.circle),
-                    child: const Icon(Icons.language_rounded, size: 50, color: Colors.cyanAccent),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    "PHAROAH ERP WEB",
-                    style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 1),
-                  ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    "Sign in with your Google account to access your live store",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white54, fontSize: 12),
-                  ),
-                  const SizedBox(height: 30),
-
-                  TextField(
-                    controller: emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                    decoration: InputDecoration(
-                      labelText: "Your Google Account Email",
-                      labelStyle: const TextStyle(color: Colors.white54),
-                      hintText: "owner@gmail.com",
-                      hintStyle: const TextStyle(color: Colors.white24),
-                      prefixIcon: const Icon(Icons.account_circle_outlined, color: Colors.cyanAccent),
-                      filled: true,
-                      fillColor: Colors.black26,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Error Message
-                  if (webPh.errorMessage.isNotEmpty) ...[
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.15), borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.redAccent.withOpacity(0.3))),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.error_outline, color: Colors.redAccent, size: 18),
-                          const SizedBox(width: 10),
-                          Expanded(child: Text(webPh.errorMessage, style: const TextStyle(color: Colors.redAccent, fontSize: 11))),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                  ],
-
-                  // SIGN IN WITH GOOGLE BUTTON
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.cyanAccent,
-                        foregroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                        elevation: 0,
-                      ),
-                      onPressed: () {
-                        String email = emailController.text.trim();
-                        if (email.isEmpty) email = "default@gmail.com";
-                        webPh.loginAndConnectDrive(email);
-                      },
-                      icon: const Icon(Icons.login_rounded, size: 20),
-                      label: const Text("SIGN IN WITH GOOGLE", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 0.5)),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    "Note: Make sure 'Live Web' switch is ON in Mobile App Settings.",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white38, fontSize: 10),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    // 3. SCENARIO 2: SUCCESS DASHBOARD (WELCOME TO PHAROAH ERP)
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
       appBar: AppBar(
@@ -157,14 +41,14 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
               children: [
                 Icon(Icons.circle, color: Colors.greenAccent, size: 8),
                 SizedBox(width: 6),
-                Text("GOOGLE DRIVE LIVE", style: TextStyle(color: Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.bold)),
+                Text("CLOUD ACTIVE", style: TextStyle(color: Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.bold)),
               ],
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white70),
-            tooltip: "Logout",
-            onPressed: () => webPh.logout(),
+            icon: const Icon(Icons.refresh_rounded, color: Colors.white70),
+            tooltip: "Refresh Cloud Data",
+            onPressed: () => webPh.checkCloudHandshake(),
           ),
         ],
       ),
@@ -223,18 +107,17 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
                     const SizedBox(height: 25),
                     const Divider(color: Colors.white10),
                     const SizedBox(height: 15),
-                    if (webPh.companyName.isNotEmpty)
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.storefront_rounded, size: 18, color: Colors.cyanAccent),
-                          const SizedBox(width: 8),
-                          Text(
-                            webPh.companyName.toUpperCase(),
-                            style: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold, fontSize: 14),
-                          ),
-                        ],
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.storefront_rounded, size: 18, color: Colors.cyanAccent),
+                        const SizedBox(width: 8),
+                        Text(
+                          webPh.companyName.toUpperCase(),
+                          style: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
