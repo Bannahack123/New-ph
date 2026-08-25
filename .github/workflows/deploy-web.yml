@@ -1,0 +1,32 @@
+name: Build Flutter Web Portal
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-web:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter (Stable 3.27.4)
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.27.4'
+          cache: true
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Build Production Web App
+        run: flutter build web --release --base-href "/"
+
+      - name: Upload Web Production Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pharoah-web-portal-build
+          path: build/web
