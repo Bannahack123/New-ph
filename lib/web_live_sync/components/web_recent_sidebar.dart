@@ -23,7 +23,7 @@ class WebRecentSidebar extends StatelessWidget {
     return Container(
       width: 230,
       decoration: const BoxDecoration(
-        color: Color(0xFF1E293B),
+        color: Color(0xFF0F172A),
         border: Border(right: BorderSide(color: Colors.white10)),
       ),
       child: Column(
@@ -31,23 +31,24 @@ class WebRecentSidebar extends StatelessWidget {
         children: [
           const SizedBox(height: 15),
 
-          // 1. Permanent Main Dashboard Button
+          // Main Dashboard Button (Royal Blue Active Pill)
           InkWell(
             onTap: onHomeTap,
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 10),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
-                color: currentView == "HOME" ? const Color(0xFF0F766E) : Colors.transparent,
+                color: currentView == "HOME" ? const Color(0xFF2563EB) : Colors.transparent,
                 borderRadius: BorderRadius.circular(12),
+                border: currentView == "HOME" ? Border.all(color: const Color(0xFF60A5FA), width: 1) : null,
               ),
               child: Row(
                 children: const [
-                  Icon(Icons.dashboard_rounded, color: Colors.cyanAccent, size: 18),
+                  Icon(Icons.dashboard_rounded, color: Colors.white, size: 18),
                   SizedBox(width: 10),
                   Text(
                     "Main Dashboard",
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 12),
                   ),
                 ],
               ),
@@ -59,7 +60,7 @@ class WebRecentSidebar extends StatelessWidget {
             child: Divider(color: Colors.white10, height: 1),
           ),
 
-          // 2. Recents Header
+          // Recents Header
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
@@ -74,7 +75,7 @@ class WebRecentSidebar extends StatelessWidget {
                     onTap: onClearAll,
                     child: const Text(
                       "Clear",
-                      style: TextStyle(color: Colors.cyanAccent, fontSize: 9, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: Color(0xFF38BDF8), fontSize: 9, fontWeight: FontWeight.bold),
                     ),
                   ),
               ],
@@ -83,7 +84,7 @@ class WebRecentSidebar extends StatelessWidget {
 
           const SizedBox(height: 8),
 
-          // 3. Dynamic Recents List with [✕] Button
+          // Dynamic Recents List
           Expanded(
             child: recentShortcuts.isEmpty
                 ? const Center(
@@ -106,14 +107,14 @@ class WebRecentSidebar extends StatelessWidget {
                       return Container(
                         margin: const EdgeInsets.only(bottom: 6),
                         decoration: BoxDecoration(
-                          color: isSelected ? const Color(0xFF334155) : Colors.black12,
+                          color: isSelected ? const Color(0xFF1E293B) : Colors.transparent,
                           borderRadius: BorderRadius.circular(10),
-                          border: isSelected ? Border.all(color: Colors.cyanAccent.withOpacity(0.4)) : null,
+                          border: isSelected ? Border.all(color: const Color(0xFF38BDF8)) : Border.all(color: Colors.white10),
                         ),
                         child: ListTile(
                           dense: true,
                           contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-                          leading: Icon(icon, color: Colors.cyanAccent, size: 16),
+                          leading: Icon(icon, color: const Color(0xFF38BDF8), size: 16),
                           title: Text(
                             title,
                             style: TextStyle(
@@ -137,13 +138,13 @@ class WebRecentSidebar extends StatelessWidget {
                   ),
           ),
 
-          // 4. Bottom Version Tag
+          // Version Tag
           Container(
             padding: const EdgeInsets.all(12),
-            color: Colors.black26,
+            color: Colors.black38,
             child: const Center(
               child: Text(
-                "Pharoah ERP Web Workstation v1.0.9",
+                "Pharoah ERP Web v1.0.9",
                 style: TextStyle(color: Colors.white24, fontSize: 9),
               ),
             ),

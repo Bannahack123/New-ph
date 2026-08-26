@@ -48,39 +48,27 @@ class WebKpiStrip extends StatelessWidget {
       }
     }
 
-    String salesDisplay = todaySales > 0 
-        ? "₹${todaySales.toStringAsFixed(0)}" 
-        : (webPh.sales.isNotEmpty ? "₹${_totalSales(webPh).toStringAsFixed(0)}" : "₹0");
-    String salesSub = todaySalesCount > 0 
-        ? "$todaySalesCount Bills Today" 
-        : "${webPh.sales.length} Total Bills";
+    String salesDisplay = todaySales > 0 ? "₹${todaySales.toStringAsFixed(0)}" : (webPh.sales.isNotEmpty ? "₹${_totalSales(webPh).toStringAsFixed(0)}" : "₹0");
+    String salesSub = todaySalesCount > 0 ? "$todaySalesCount Bills Today" : "${webPh.sales.length} Total Bills";
 
-    String purDisplay = todayPurchases > 0 
-        ? "₹${todayPurchases.toStringAsFixed(0)}" 
-        : (webPh.purchases.isNotEmpty ? "₹${_totalPur(webPh).toStringAsFixed(0)}" : "₹0");
-    String purSub = todayPurCount > 0 
-        ? "$todayPurCount Inwards Today" 
-        : "${webPh.purchases.length} Total Inwards";
+    String purDisplay = todayPurchases > 0 ? "₹${todayPurchases.toStringAsFixed(0)}" : (webPh.purchases.isNotEmpty ? "₹${_totalPur(webPh).toStringAsFixed(0)}" : "₹0");
+    String purSub = todayPurCount > 0 ? "$todayPurCount Inwards Today" : "${webPh.purchases.length} Total Inwards";
 
-    String stockDisplay = totalStockVal > 0 
-        ? "₹${totalStockVal.toStringAsFixed(0)}" 
-        : "${webPh.medicines.length} Items";
+    String stockDisplay = totalStockVal > 0 ? "₹${totalStockVal.toStringAsFixed(0)}" : "${webPh.medicines.length} Items";
     String stockSub = "${webPh.medicines.length} Catalog Items";
 
-    String outDisplay = totalOutstanding > 0 
-        ? "₹${totalOutstanding.toStringAsFixed(0)}" 
-        : "${webPh.parties.length} Parties";
+    String outDisplay = totalOutstanding > 0 ? "₹${totalOutstanding.toStringAsFixed(0)}" : "${webPh.parties.length} Parties";
     String outSub = "$debtorsCount Debtors";
 
     return Row(
       children: [
-        Expanded(child: _kpiCard("TODAY SALES", salesDisplay, salesSub, Icons.trending_up_rounded, Colors.greenAccent)),
-        const SizedBox(width: 12),
-        Expanded(child: _kpiCard("TODAY PURCHASES", purDisplay, purSub, Icons.shopping_cart_rounded, Colors.orangeAccent)),
-        const SizedBox(width: 12),
-        Expanded(child: _kpiCard("STOCK VALUATION", stockDisplay, stockSub, Icons.inventory_2_rounded, const Color(0xFF38BDF8))),
-        const SizedBox(width: 12),
-        Expanded(child: _kpiCard("OUTSTANDING", outDisplay, outSub, Icons.account_balance_wallet_rounded, const Color(0xFFA78BFA))),
+        Expanded(child: _kpiCard("TODAY SALES", salesDisplay, salesSub, Icons.trending_up_rounded, const Color(0xFF10B981))),
+        const SizedBox(width: 14),
+        Expanded(child: _kpiCard("TODAY PURCHASES", purDisplay, purSub, Icons.shopping_cart_rounded, const Color(0xFFF59E0B))),
+        const SizedBox(width: 14),
+        Expanded(child: _kpiCard("STOCK VALUATION", stockDisplay, stockSub, Icons.inventory_2_rounded, const Color(0xFF06B6D4))),
+        const SizedBox(width: 14),
+        Expanded(child: _kpiCard("OUTSTANDING", outDisplay, outSub, Icons.account_balance_wallet_rounded, const Color(0xFF8B5CF6))),
       ],
     );
   }
@@ -90,12 +78,22 @@ class WebKpiStrip extends StatelessWidget {
 
   Widget _kpiCard(String title, String value, String sub, IconData icon, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withOpacity(0.25)),
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 6, offset: const Offset(0, 2))],
+        gradient: const LinearGradient(
+          colors: [Color(0xFF19243B), Color(0xFF0F172A)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.35), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          )
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -104,12 +102,12 @@ class WebKpiStrip extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(title, style: const TextStyle(color: Colors.white54, fontSize: 8.5, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-              Icon(icon, color: color, size: 16),
+              Icon(icon, color: color, size: 18),
             ],
           ),
-          const SizedBox(height: 6),
-          Text(value, style: TextStyle(color: color, fontSize: 17, fontWeight: FontWeight.w900)),
-          const SizedBox(height: 2),
+          const SizedBox(height: 8),
+          Text(value, style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 3),
           Text(sub, style: const TextStyle(color: Colors.white38, fontSize: 8.5)),
         ],
       ),

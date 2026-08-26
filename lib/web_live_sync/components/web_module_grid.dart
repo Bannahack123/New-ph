@@ -25,14 +25,14 @@ class WebModuleGrid extends StatelessWidget {
   }
 
   // =========================================================================
-  // LEVEL 0: COMPACT & SLEEK 8 HUBS GRID
+  // LEVEL 0: PREMIUM OBSIDIAN 8 HUBS GRID
   // =========================================================================
   Widget _buildLevel0HubsGrid(BuildContext context) {
     final hubs = WebModulesRegistry.allHubs;
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        int crossAxisCount = constraints.maxWidth > 1100 ? 4 : (constraints.maxWidth > 700 ? 2 : 1);
+        int crossAxisCount = constraints.maxWidth > 1150 ? 4 : (constraints.maxWidth > 750 ? 2 : 1);
 
         return GridView.builder(
           shrinkWrap: true,
@@ -40,9 +40,9 @@ class WebModuleGrid extends StatelessWidget {
           itemCount: hubs.length,
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
-            crossAxisSpacing: 14,
-            mainAxisSpacing: 14,
-            childAspectRatio: 1.65, // Sleek rectangular height
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+            childAspectRatio: 1.35, // Perfectly balanced card proportion
           ),
           itemBuilder: (context, index) {
             final hub = hubs[index];
@@ -50,60 +50,95 @@ class WebModuleGrid extends StatelessWidget {
 
             return InkWell(
               onTap: () => onHubTap(hub.id, hub.title),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(18),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1E293B),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white10),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF19243B), Color(0xFF0F172A)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: color.withOpacity(0.35), width: 1.2),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black26,
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
+                      color: color.withOpacity(0.08),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
                     )
                   ],
                 ),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: color.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: color.withOpacity(0.3)),
-                      ),
-                      child: Icon(hub.icon, color: color, size: 22),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
+                    // Top Row: Icon + Title + Arrow
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: color.withOpacity(0.18),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: color.withOpacity(0.4)),
+                          ),
+                          child: Icon(hub.icon, color: color, size: 22),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
                             hub.title,
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 12,
+                              fontSize: 13,
                               fontWeight: FontWeight.w900,
-                              letterSpacing: 0.3,
+                              letterSpacing: 0.5,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 3),
-                          Text(
-                            hub.subtitle,
-                            style: const TextStyle(color: Colors.white54, fontSize: 9.5),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
+                        ),
+                        Icon(Icons.arrow_forward_rounded, color: color.withOpacity(0.8), size: 16),
+                      ],
+                    ),
+
+                    // Middle: Subtitle
+                    Text(
+                      hub.subtitle,
+                      style: const TextStyle(color: Colors.white60, fontSize: 10.5, height: 1.3),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+
+                    // Bottom: Feature Chips (No empty dead space!)
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: hub.subActions.take(3).map((act) {
+                          return Container(
+                            margin: const EdgeInsets.only(right: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.black38,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.white10),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(act.icon, size: 11, color: color),
+                                const SizedBox(width: 4),
+                                Text(
+                                  act.title,
+                                  style: const TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
                       ),
                     ),
-                    const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white24, size: 12),
                   ],
                 ),
               ),
@@ -115,7 +150,7 @@ class WebModuleGrid extends StatelessWidget {
   }
 
   // =========================================================================
-  // LEVEL 1: SUB-ACTIONS GRID WITH STEP BACK HEADER
+  // LEVEL 1: DRILLDOWN WITH CLEAN HEADER & SLEEK CARDS
   // =========================================================================
   Widget _buildLevel1SubActionsGrid(BuildContext context) {
     final currentHub = WebModulesRegistry.allHubs.firstWhere(
@@ -126,38 +161,40 @@ class WebModuleGrid extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Dedicated Back Action Header Bar
+        // Top Back Header Bar
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E293B),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white10),
+            gradient: const LinearGradient(
+              colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white12),
           ),
           child: Row(
             children: [
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white12,
+                  backgroundColor: const Color(0xFF2563EB),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   elevation: 0,
                 ),
                 onPressed: onBackToHome,
                 icon: const Icon(Icons.arrow_back_rounded, size: 16),
-                label: const Text("BACK TO MODULES", style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+                label: const Text("BACK TO MAIN HUBS", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 18),
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: currentHub.color.withOpacity(0.15),
+                  color: currentHub.color.withOpacity(0.2),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(currentHub.icon, color: currentHub.color, size: 18),
+                child: Icon(currentHub.icon, color: currentHub.color, size: 20),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -165,7 +202,7 @@ class WebModuleGrid extends StatelessWidget {
                     currentHub.title,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 14,
+                      fontSize: 15,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 0.5,
                     ),
@@ -179,9 +216,9 @@ class WebModuleGrid extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 20),
 
-        // Compact Sub-Actions Grid
+        // Sub-Actions Cards Grid
         LayoutBuilder(
           builder: (context, constraints) {
             int crossAxisCount = constraints.maxWidth > 950 ? 3 : (constraints.maxWidth > 600 ? 2 : 1);
@@ -192,9 +229,9 @@ class WebModuleGrid extends StatelessWidget {
               itemCount: currentHub.subActions.length,
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: crossAxisCount,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 1.8, // Sleek compact cards
+                crossAxisSpacing: 14,
+                mainAxisSpacing: 14,
+                childAspectRatio: 1.85,
               ),
               itemBuilder: (context, index) {
                 final act = currentHub.subActions[index];
@@ -202,32 +239,37 @@ class WebModuleGrid extends StatelessWidget {
 
                 return InkWell(
                   onTap: () => onActionTap(act.title, act.icon, act.key),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(16),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1E293B),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: color.withOpacity(0.35), width: 1.2),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF19243B), Color(0xFF0F172A)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: color.withOpacity(0.4), width: 1.2),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
+                          color: Colors.black38,
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
                         )
                       ],
                     ),
                     child: Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(10),
+                          padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: color.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(10),
+                            color: color.withOpacity(0.18),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: color.withOpacity(0.35)),
                           ),
-                          child: Icon(act.icon, color: color, size: 20),
+                          child: Icon(act.icon, color: color, size: 22),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 14),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -238,16 +280,16 @@ class WebModuleGrid extends StatelessWidget {
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w900,
-                                  fontSize: 12,
+                                  fontSize: 12.5,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              const SizedBox(height: 3),
+                              const SizedBox(height: 4),
                               Text(
                                 act.subtitle,
                                 style: const TextStyle(color: Colors.white54, fontSize: 9.5),
-                                maxLines: 1,
+                                maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ],
