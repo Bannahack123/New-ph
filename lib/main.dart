@@ -1,5 +1,4 @@
 import 'dart:ui';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'pharoah_manager.dart';
@@ -8,16 +7,9 @@ import 'gateway/multi_setup_view.dart';
 import 'gateway/company_list_screen.dart';
 import 'gateway/company_control_panel.dart';
 import 'main_control_shell.dart';
-import 'web_live_sync/web_app_root.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  if (kIsWeb) {
-    runApp(const WebAppRoot());
-    return;
-  }
-
   runApp(
     ChangeNotifierProvider(
       create: (_) => PharoahManager(),
@@ -66,7 +58,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             cardTheme: const CardThemeData(
               elevation: 3,
               surfaceTintColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(15))),
+            ),
             appBarTheme: const AppBarTheme(
               centerTitle: false, 
               elevation: 0,

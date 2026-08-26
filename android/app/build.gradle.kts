@@ -7,7 +7,7 @@ plugins {
 android {
     namespace = "com.rawat.pharoah_erp"
     compileSdk = 36
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -34,7 +34,6 @@ android {
     }
 }
 
-// BYPASS AGP 8.9.1 REQUIREMENT CHECK
 tasks.configureEach {
     if (name.contains("AarMetadata")) {
         enabled = false
