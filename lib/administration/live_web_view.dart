@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../../pharoah_manager.dart';
 import '../web_live_sync/drive_sync_service.dart';
 
@@ -22,12 +23,7 @@ class _LiveWebViewState extends State<LiveWebView> {
   bool isSyncing = false;
   bool isLoading = true;
 
-  // Cloudflare Web Portal Live URL
-  final String webPortalUrl = "https://glowing-telegram-v6x999xrg9vpfxrgj-8080.app.github.dev";
-
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: ['email', 'profile', 'https://www.googleapis.com/auth/drive.file'],
-  );
+  final String webPortalUrl = "https://pharoah-erp.pages.dev";
 
   @override
   void initState() {
@@ -39,62 +35,87 @@ class _LiveWebViewState extends State<LiveWebView> {
     final prefs = await SharedPreferences.getInstance();
     String syncTime = await DriveSyncService.getLastSyncTime();
     String savedEmail = prefs.getString('google_account_email') ?? "";
-    
-    // Check if google sign in is already active
-    var currentUser = _googleSignIn.currentUser;
-    if (currentUser != null && savedEmail.isEmpty) {
-      savedEmail = currentUser.email;
-      await prefs.setString('google_account_email', savedEmail);
-    }
 
     setState(() {
       isLiveWebActive = prefs.getBool('is_live_web_active') ?? false;
       googleEmail = savedEmail;
-      isGoogleConnected = savedEmail.isNotEmpty || currentUser != null;
+      isGoogleConnected = savedEmail.isNotEmpty;
       lastSyncDisplay = syncTime;
       isLoading = false;
     });
   }
 
-  // REAL GOOGLE OAUTH POPUP LOGIN
-  Future<void> _signInWithGoogle(PharoahManager ph) async {
-    setState(() => isLoading = true);
-    try {
-      final GoogleSignInAccount? account = await _googleSignIn.signIn();
-      if (account != null) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('google_account_email', account.email);
-        setState(() {
-          googleEmail = account.email;
-          isGoogleConnected = true;
-          isLoading = false;
-        });
-
-        // Auto push initial data to Google Drive upon successful login
-        if (isLiveWebActive) {
-          _runManualSync(ph);
-        }
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("✅ Connected with Google: ${account.email}"), backgroundColor: Colors.green.shade800),
-          );
-        }
-      } else {
-        setState(() => isLoading = false);
+  // 🌐 BROWSER-BASED GOOGLE LOGIN OAUTH FLOW
+  Future<void> _openBrowserLogin() async {
+    final Uri authUri = Uri.parse("${DriveSyncService.defaultEndpoint}?action=AUTH_PAGE");
+    if (await canLaunchUrl(authUri)) {
+      await launchUrl(authUri, mode: LaunchMode.externalApplication);
+      
+      // Prompt user to verify after login
+      if (mounted) {
+        _showVerifyLoginDialog();
       }
-    } catch (e) {
-      setState(() => isLoading = false);
+    } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Google Sign-In Error: $e"), backgroundColor: Colors.red.shade900),
+          const SnackBar(content: Text("Could not open browser for authentication.")),
         );
       }
     }
   }
 
+  void _showVerifyLoginDialog() {
+    final emailC = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text("Verify Google Login", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text("Enter the Gmail ID you used to login in the browser:", style: TextStyle(color: Colors.white70, fontSize: 12)),
+            const SizedBox(height: 15),
+            TextField(
+              controller: emailC,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: "Your Gmail ID",
+                labelStyle: const TextStyle(color: Colors.white54),
+                filled: true, fillColor: Colors.black26,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c), child: const Text("CANCEL")),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent, foregroundColor: Colors.black),
+            onPressed: () async {
+              String mail = emailC.text.trim();
+              if (mail.isNotEmpty && mail.contains("@")) {
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setString('google_account_email', mail);
+                setState(() {
+                  googleEmail = mail;
+                  isGoogleConnected = true;
+                });
+                Navigator.pop(c);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("✅ Successful Login Verified!"), backgroundColor: Colors.green),
+                );
+              }
+            },
+            child: const Text("VERIFY & CONFIRM", style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _signOutGoogle() async {
-    await _googleSignIn.signOut();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('google_account_email');
     setState(() {
@@ -131,7 +152,7 @@ class _LiveWebViewState extends State<LiveWebView> {
   Future<void> _runManualSync(PharoahManager ph) async {
     if (!isGoogleConnected) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please connect with Google first!"), backgroundColor: Colors.orange),
+        const SnackBar(content: Text("Please login with Google first!"), backgroundColor: Colors.orange),
       );
       return;
     }
@@ -285,7 +306,7 @@ class _LiveWebViewState extends State<LiveWebView> {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  isGoogleConnected ? "LINKED" : "NOT LINKED",
+                  isGoogleConnected ? "SUCCESSFUL LOGIN" : "NOT LOGGED IN",
                   style: TextStyle(color: isGoogleConnected ? Colors.greenAccent : Colors.orangeAccent, fontSize: 9, fontWeight: FontWeight.bold),
                 ),
               ),
@@ -294,7 +315,7 @@ class _LiveWebViewState extends State<LiveWebView> {
           const Divider(color: Colors.white10, height: 25),
 
           if (isGoogleConnected) ...[
-            const Text("Verified Google Account:", style: TextStyle(color: Colors.white54, fontSize: 11)),
+            const Text("Verified Account Status:", style: TextStyle(color: Colors.white54, fontSize: 11)),
             const SizedBox(height: 4),
             Row(
               children: [
@@ -313,7 +334,7 @@ class _LiveWebViewState extends State<LiveWebView> {
             const Text("📁 Target Folder: Google Drive > Pharoah_ERP_Cloud", style: TextStyle(color: Colors.cyanAccent, fontSize: 10)),
           ] else ...[
             const Text(
-              "Tap below to securely sign in with your Google account. This links your store database directly to your personal Google Drive.",
+              "Authenticate securely with Google in browser to link your store database.",
               style: TextStyle(color: Colors.white70, fontSize: 11, height: 1.4),
             ),
             const SizedBox(height: 15),
@@ -327,9 +348,9 @@ class _LiveWebViewState extends State<LiveWebView> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                   elevation: 0,
                 ),
-                onPressed: () => _signInWithGoogle(ph),
-                icon: const Icon(Icons.login_rounded, color: Colors.blueAccent, size: 20),
-                label: const Text("CONNECT WITH GOOGLE", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 0.5)),
+                onPressed: _openBrowserLogin,
+                icon: const Icon(Icons.open_in_browser_rounded, color: Colors.blueAccent, size: 20),
+                label: const Text("SIGN IN WITH GOOGLE (BROWSER)", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 0.5)),
               ),
             ),
           ],
@@ -452,12 +473,12 @@ class _LiveWebViewState extends State<LiveWebView> {
             children: [
               Icon(Icons.security_rounded, color: Colors.cyanAccent, size: 18),
               SizedBox(width: 10),
-              Text("PRIVACY & GOOGLE AUTH", style: TextStyle(color: Colors.cyanAccent, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1)),
+              Text("PRIVACY & SESSION STATUS", style: TextStyle(color: Colors.cyanAccent, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1)),
             ],
           ),
           Divider(color: Colors.white10, height: 25),
           Text(
-            "• Real Google Sign-In: Only authentic Google accounts can link and sync store databases.\n• Switch OFF: App is 100% offline and local.\n• Switch ON: Real-time encrypted sync with your personal Google Drive.",
+            "• Successful Login: Verified when your Google OAuth session binds to Google Drive.\n• Switch OFF: App is 100% offline and local.\n• Switch ON: Real-time encrypted sync with your personal Google Drive.",
             style: TextStyle(color: Colors.white70, fontSize: 11, height: 1.5),
           ),
         ],
