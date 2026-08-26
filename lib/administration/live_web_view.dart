@@ -23,7 +23,7 @@ class _LiveWebViewState extends State<LiveWebView> {
   bool isLoading = true;
 
   // Cloudflare Web Portal Live URL
-  final String webPortalUrl = "https://pharoah-erp.pages.dev";
+  final String webPortalUrl = "https://glowing-telegram-v6x999xrg9vpfxrgj-8080.app.github.dev";
 
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile', 'https://www.googleapis.com/auth/drive.file'],
