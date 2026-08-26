@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../pharoah_manager.dart';
@@ -15,14 +16,18 @@ class LiveWebView extends StatefulWidget {
 
 class _LiveWebViewState extends State<LiveWebView> {
   bool isLiveWebActive = false;
-  String googleEmail = "";
   bool isGoogleConnected = false;
+  String googleEmail = "";
   String lastSyncDisplay = "Never";
   bool isSyncing = false;
   bool isLoading = true;
 
-  // Cloudflare Web Portal Target URL
-  final String webPortalUrl = "https://pharoah-erp.pages.dev"; 
+  // Cloudflare Web Portal Live URL
+  final String webPortalUrl = "https://pharoah-erp.pages.dev";
+
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email', 'profile', 'https://www.googleapis.com/auth/drive.file'],
+  );
 
   @override
   void initState() {
@@ -34,90 +39,62 @@ class _LiveWebViewState extends State<LiveWebView> {
     final prefs = await SharedPreferences.getInstance();
     String syncTime = await DriveSyncService.getLastSyncTime();
     String savedEmail = prefs.getString('google_account_email') ?? "";
+    
+    // Check if google sign in is already active
+    var currentUser = _googleSignIn.currentUser;
+    if (currentUser != null && savedEmail.isEmpty) {
+      savedEmail = currentUser.email;
+      await prefs.setString('google_account_email', savedEmail);
+    }
+
     setState(() {
       isLiveWebActive = prefs.getBool('is_live_web_active') ?? false;
       googleEmail = savedEmail;
-      isGoogleConnected = savedEmail.isNotEmpty;
+      isGoogleConnected = savedEmail.isNotEmpty || currentUser != null;
       lastSyncDisplay = syncTime;
       isLoading = false;
     });
   }
 
-  // Google Login / Account Connect Dialog
-  void _showGoogleSignInDialog(PharoahManager ph) {
-    final emailController = TextEditingController(text: googleEmail.isNotEmpty ? googleEmail : "");
-    showDialog(
-      context: context,
-      builder: (c) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Colors.cyanAccent)),
-        title: const Row(
-          children: [
-            Icon(Icons.account_circle, color: Colors.cyanAccent, size: 28),
-            SizedBox(width: 10),
-            Text("Google Drive Sign-In", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Enter the Gmail account linked to your Google Drive to enable cloud backup & live web access.",
-              style: TextStyle(color: Colors.white70, fontSize: 12),
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: emailController,
-              keyboardType: TextInputType.emailAddress,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-              decoration: InputDecoration(
-                labelText: "Your Gmail Address",
-                labelStyle: const TextStyle(color: Colors.white54),
-                hintText: "example@gmail.com",
-                hintStyle: const TextStyle(color: Colors.white24),
-                prefixIcon: const Icon(Icons.email_outlined, color: Colors.cyanAccent),
-                filled: true,
-                fillColor: Colors.black26,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(c),
-            child: const Text("CANCEL", style: TextStyle(color: Colors.white54)),
-          ),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.cyanAccent,
-              foregroundColor: Colors.black,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            onPressed: () async {
-              String entered = emailController.text.trim();
-              if (entered.isNotEmpty && entered.contains("@")) {
-                final prefs = await SharedPreferences.getInstance();
-                await prefs.setString('google_account_email', entered);
-                setState(() {
-                  googleEmail = entered;
-                  isGoogleConnected = true;
-                });
-                Navigator.pop(c);
-                // Instant Sync on login
-                _runManualSync(ph);
-              }
-            },
-            icon: const Icon(Icons.login_rounded),
-            label: const Text("CONNECT ACCOUNT", style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
+  // REAL GOOGLE OAUTH POPUP LOGIN
+  Future<void> _signInWithGoogle(PharoahManager ph) async {
+    setState(() => isLoading = true);
+    try {
+      final GoogleSignInAccount? account = await _googleSignIn.signIn();
+      if (account != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('google_account_email', account.email);
+        setState(() {
+          googleEmail = account.email;
+          isGoogleConnected = true;
+          isLoading = false;
+        });
+
+        // Auto push initial data to Google Drive upon successful login
+        if (isLiveWebActive) {
+          _runManualSync(ph);
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("✅ Connected with Google: ${account.email}"), backgroundColor: Colors.green.shade800),
+          );
+        }
+      } else {
+        setState(() => isLoading = false);
+      }
+    } catch (e) {
+      setState(() => isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Google Sign-In Error: $e"), backgroundColor: Colors.red.shade900),
+        );
+      }
+    }
   }
 
-  Future<void> _disconnectGoogle() async {
+  Future<void> _signOutGoogle() async {
+    await _googleSignIn.signOut();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('google_account_email');
     setState(() {
@@ -134,9 +111,7 @@ class _LiveWebViewState extends State<LiveWebView> {
   Future<void> _toggleLiveWeb(bool value, PharoahManager ph) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('is_live_web_active', value);
-    setState(() {
-      isLiveWebActive = value;
-    });
+    setState(() => isLiveWebActive = value);
 
     if (value && isGoogleConnected) {
       _runManualSync(ph);
@@ -145,7 +120,7 @@ class _LiveWebViewState extends State<LiveWebView> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(value ? "🟢 Live Web Broadcaster Activated!" : "🔴 Web Live Offline - 100% Local Storage"),
+          content: Text(value ? "🟢 Live Web Broadcast Activated!" : "🔴 Web Live Offline - 100% Local Storage"),
           backgroundColor: value ? Colors.teal.shade800 : Colors.blueGrey.shade900,
           duration: const Duration(seconds: 2),
         ),
@@ -154,6 +129,13 @@ class _LiveWebViewState extends State<LiveWebView> {
   }
 
   Future<void> _runManualSync(PharoahManager ph) async {
+    if (!isGoogleConnected) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please connect with Google first!"), backgroundColor: Colors.orange),
+      );
+      return;
+    }
+
     setState(() => isSyncing = true);
     bool success = await DriveSyncService.pushDataToCloud(ph);
     String syncTime = await DriveSyncService.getLastSyncTime();
@@ -166,7 +148,7 @@ class _LiveWebViewState extends State<LiveWebView> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(success ? "✅ Synced to Google Drive successfully!" : "❌ Sync Failed. Check internet."),
+          content: Text(success ? "✅ Data Synced to Google Drive successfully!" : "❌ Sync Failed. Check internet."),
           backgroundColor: success ? Colors.green.shade800 : Colors.red.shade900,
         ),
       );
@@ -178,7 +160,7 @@ class _LiveWebViewState extends State<LiveWebView> {
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Could not launch browser. Check connection.")),
+          const SnackBar(content: Text("Could not launch browser.")),
         );
       }
     }
@@ -203,19 +185,21 @@ class _LiveWebViewState extends State<LiveWebView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 1. MASTER TOGGLE SWITCH CARD
+                  // 1. MASTER TOGGLE SWITCH
                   _buildMasterSwitchCard(ph),
                   const SizedBox(height: 20),
 
-                  // 2. JAB SWITCH ON HO: GOOGLE AUTH & DRIVE CARD
+                  // 2. GOOGLE AUTH & DRIVE LINKING CARD
+                  _buildGoogleAuthCard(ph),
+                  const SizedBox(height: 20),
+
+                  // 3. JAB SWITCH ON HO: WEB ACCESS POINT
                   if (isLiveWebActive) ...[
-                    _buildGoogleAuthCard(ph),
-                    const SizedBox(height: 20),
                     _buildActiveBroadcastCard(ph),
                     const SizedBox(height: 20),
                   ],
 
-                  // 3. SECURITY & PRIVACY CARD
+                  // 4. SECURITY & RULES GUIDE
                   _buildSecurityGuideCard(),
                 ],
               ),
@@ -223,7 +207,6 @@ class _LiveWebViewState extends State<LiveWebView> {
     );
   }
 
-  // SWITCH CARD
   Widget _buildMasterSwitchCard(PharoahManager ph) {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -231,13 +214,6 @@ class _LiveWebViewState extends State<LiveWebView> {
         color: const Color(0xFF1E293B),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: isLiveWebActive ? Colors.cyanAccent : Colors.white10, width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: isLiveWebActive ? Colors.cyanAccent.withOpacity(0.15) : Colors.black26,
-            blurRadius: 15,
-            offset: const Offset(0, 6),
-          )
-        ],
       ),
       child: Row(
         children: [
@@ -285,7 +261,6 @@ class _LiveWebViewState extends State<LiveWebView> {
     );
   }
 
-  // 🛡️ NAYA: GOOGLE AUTHENTICATION & DRIVE CONNECTION CARD
   Widget _buildGoogleAuthCard(PharoahManager ph) {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -299,11 +274,7 @@ class _LiveWebViewState extends State<LiveWebView> {
         children: [
           Row(
             children: [
-              Image.network(
-                "https://cdn-icons-png.flaticon.com/512/2991/2991148.png", // Google Icon
-                width: 22, height: 22,
-                errorBuilder: (c, o, s) => const Icon(Icons.account_circle, color: Colors.cyanAccent, size: 22),
-              ),
+              const Icon(Icons.g_mobiledata_rounded, color: Colors.cyanAccent, size: 28),
               const SizedBox(width: 10),
               const Text("GOOGLE DRIVE ACCOUNT", style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
               const Spacer(),
@@ -323,7 +294,7 @@ class _LiveWebViewState extends State<LiveWebView> {
           const Divider(color: Colors.white10, height: 25),
 
           if (isGoogleConnected) ...[
-            Text("Connected Account:", style: const TextStyle(color: Colors.white54, fontSize: 11)),
+            const Text("Verified Google Account:", style: TextStyle(color: Colors.white54, fontSize: 11)),
             const SizedBox(height: 4),
             Row(
               children: [
@@ -333,7 +304,7 @@ class _LiveWebViewState extends State<LiveWebView> {
                   child: Text(googleEmail, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13), overflow: TextOverflow.ellipsis),
                 ),
                 TextButton(
-                  onPressed: _disconnectGoogle,
+                  onPressed: _signOutGoogle,
                   child: const Text("Disconnect", style: TextStyle(color: Colors.redAccent, fontSize: 11)),
                 ),
               ],
@@ -342,22 +313,23 @@ class _LiveWebViewState extends State<LiveWebView> {
             const Text("📁 Target Folder: Google Drive > Pharoah_ERP_Cloud", style: TextStyle(color: Colors.cyanAccent, fontSize: 10)),
           ] else ...[
             const Text(
-              "Sign in with your Google account to automatically create and sync the cloud database folder on your Drive.",
-              style: TextStyle(color: Colors.white70, fontSize: 11),
+              "Tap below to securely sign in with your Google account. This links your store database directly to your personal Google Drive.",
+              style: TextStyle(color: Colors.white70, fontSize: 11, height: 1.4),
             ),
             const SizedBox(height: 15),
             SizedBox(
               width: double.infinity,
-              height: 44,
+              height: 48,
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: Colors.black87,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                  elevation: 0,
                 ),
-                onPressed: () => _showGoogleSignInDialog(ph),
-                icon: const Icon(Icons.login, color: Colors.blueAccent, size: 20),
-                label: const Text("SIGN IN WITH GOOGLE", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                onPressed: () => _signInWithGoogle(ph),
+                icon: const Icon(Icons.login_rounded, color: Colors.blueAccent, size: 20),
+                label: const Text("CONNECT WITH GOOGLE", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 0.5)),
               ),
             ),
           ],
@@ -366,7 +338,6 @@ class _LiveWebViewState extends State<LiveWebView> {
     );
   }
 
-  // ACTIVE BROADCAST & OPEN IN BROWSER CARD
   Widget _buildActiveBroadcastCard(PharoahManager ph) {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -409,7 +380,6 @@ class _LiveWebViewState extends State<LiveWebView> {
           Text("Last Cloud Sync: $lastSyncDisplay", style: const TextStyle(color: Colors.white70, fontSize: 11)),
           const SizedBox(height: 15),
 
-          // Link Box
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
             decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(12)),
@@ -431,7 +401,6 @@ class _LiveWebViewState extends State<LiveWebView> {
           ),
           const SizedBox(height: 15),
 
-          // 🚀 DIRECT OPEN IN BROWSER BUTTON
           SizedBox(
             width: double.infinity,
             height: 48,
@@ -449,7 +418,6 @@ class _LiveWebViewState extends State<LiveWebView> {
           ),
           const SizedBox(height: 10),
 
-          // SYNC BUTTON
           SizedBox(
             width: double.infinity,
             height: 42,
@@ -459,7 +427,7 @@ class _LiveWebViewState extends State<LiveWebView> {
                 side: const BorderSide(color: Colors.white38),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              onPressed: isSyncing ? null : () => _runManualSync(ph),
+              onPressed: (isSyncing || !isGoogleConnected) ? null : () => _runManualSync(ph),
               icon: const Icon(Icons.sync_rounded, size: 18),
               label: const Text("SYNC NOW TO GOOGLE DRIVE", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
             ),
@@ -484,12 +452,12 @@ class _LiveWebViewState extends State<LiveWebView> {
             children: [
               Icon(Icons.security_rounded, color: Colors.cyanAccent, size: 18),
               SizedBox(width: 10),
-              Text("PRIVACY & DATA ISOLATION", style: TextStyle(color: Colors.cyanAccent, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1)),
+              Text("PRIVACY & GOOGLE AUTH", style: TextStyle(color: Colors.cyanAccent, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1)),
             ],
           ),
           Divider(color: Colors.white10, height: 25),
           Text(
-            "• Switch OFF: App 100% offline rahegi, koi bhi data cloud par nahi jayega.\n• Switch ON: Data sirf aapki linked Google Drive me sync hoga.\n• Nayi company sirf Mobile App se banegi, web station sirf authorized mirror rahega.",
+            "• Real Google Sign-In: Only authentic Google accounts can link and sync store databases.\n• Switch OFF: App is 100% offline and local.\n• Switch ON: Real-time encrypted sync with your personal Google Drive.",
             style: TextStyle(color: Colors.white70, fontSize: 11, height: 1.5),
           ),
         ],
