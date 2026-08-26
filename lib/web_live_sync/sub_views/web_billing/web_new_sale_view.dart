@@ -1,8 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
+import '../../../models.dart';
+import '../../../gateway/company_registry_model.dart';
+import '../../../pdf/sale_invoice_pdf.dart';
 import '../../pharoah_web_manager.dart';
 import '../../web_cloud_config.dart';
+import 'web_item_entry_card.dart';
 import 'package:http/http.dart' as http;
 
 class WebNewSaleView extends StatefulWidget {
@@ -19,21 +24,9 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
   final extraDiscC = TextEditingController(text: "0");
   DateTime billDate = DateTime.now();
   String paymentMode = "CASH";
-  
+
   Map<String, dynamic>? selectedParty;
-  Map<String, dynamic>? selectedMed;
-
-  final batchC = TextEditingController();
-  final expC = TextEditingController(text: "12/26");
-  final mrpC = TextEditingController(text: "0.0");
-  final rateC = TextEditingController(text: "0.0");
-  final qtyC = TextEditingController(text: "1");
-  final freeC = TextEditingController(text: "0");
-  final gstC = TextEditingController(text: "12");
-  final discPerC = TextEditingController(text: "0.0");
-  String rateType = "A";
-
-  List<Map<String, dynamic>> billItems = [];
+  List<BillItem> billItems = [];
   bool isSaving = false;
 
   @override
@@ -48,126 +41,68 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
   void dispose() {
     billNoC.dispose();
     extraDiscC.dispose();
-    batchC.dispose();
-    expC.dispose();
-    mrpC.dispose();
-    rateC.dispose();
-    qtyC.dispose();
-    freeC.dispose();
-    gstC.dispose();
-    discPerC.dispose();
     super.dispose();
   }
 
-  void _onProductSelected(Map<String, dynamic> med) {
-    setState(() {
-      selectedMed = med;
-      mrpC.text = (med['mrp'] as num? ?? 0).toDouble().toStringAsFixed(2);
-      gstC.text = (med['gst'] as num? ?? 12).toString();
-      rateType = "A";
-      rateC.text = (med['rateA'] as num? ?? (med['mrp'] as num? ?? 0)).toDouble().toStringAsFixed(2);
-      batchC.text = "AUTO";
-      expC.text = "12/26";
-    });
-  }
-
-  void _applyRateLevel(String type) {
-    if (selectedMed == null) return;
-    setState(() {
-      rateType = type;
-      if (type == "A") {
-        rateC.text = (selectedMed!['rateA'] as num? ?? selectedMed!['mrp'] ?? 0).toDouble().toStringAsFixed(2);
-      } else if (type == "B") {
-        rateC.text = (selectedMed!['rateB'] as num? ?? selectedMed!['mrp'] ?? 0).toDouble().toStringAsFixed(2);
-      } else {
-        double mrp = (selectedMed!['mrp'] as num? ?? 0).toDouble();
-        double gst = (selectedMed!['gst'] as num? ?? 12).toDouble();
-        double baseTaxable = mrp / (1 + (gst / 100));
-        rateC.text = (baseTaxable * 0.92).toStringAsFixed(2);
-      }
-    });
-  }
-
-  void _addItemToCart() {
-    if (selectedMed == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please select a product first!")));
-      return;
-    }
-    double q = double.tryParse(qtyC.text) ?? 1;
-    double freeQ = double.tryParse(freeC.text) ?? 0;
-    double r = double.tryParse(rateC.text) ?? 0;
-    double dPer = double.tryParse(discPerC.text) ?? 0;
-    double gPer = double.tryParse(gstC.text) ?? 12;
-
-    if (q <= 0) return;
-
-    double gross = q * r;
-    double discAmt = gross * (dPer / 100);
-    double taxable = gross - discAmt;
-    double taxAmt = taxable * (gPer / 100);
-    double total = taxable + taxAmt;
-
+  void _openItemEntry(Medicine med, {BillItem? itemToEdit, int? editIndex}) {
     final webPh = Provider.of<PharoahWebManager>(context, listen: false);
-    String shopState = (webPh.companyProfile['state'] ?? 'Rajasthan').toString().toLowerCase();
-    String partyState = (selectedParty != null ? selectedParty!['state'] ?? 'Rajasthan' : 'Rajasthan').toString().toLowerCase();
-    bool isLocal = shopState == partyState;
+    String shopState = (webPh.companyProfile['state'] ?? 'Rajasthan').toString();
+    String partyState = (selectedParty != null ? (selectedParty!['state'] ?? 'Rajasthan') : 'Rajasthan').toString();
 
-    setState(() {
-      billItems.add({
-        'srNo': billItems.length + 1,
-        'medicineID': selectedMed!['id'] ?? selectedMed!['systemId'] ?? 'temp',
-        'name': (selectedMed!['name'] ?? 'UNKNOWN').toString(),
-        'packing': (selectedMed!['packing'] ?? 'N/A').toString(),
-        'batch': batchC.text.trim().toUpperCase(),
-        'exp': expC.text.trim(),
-        'hsn': (selectedMed!['hsnCode'] ?? '3004').toString(),
-        'mrp': double.tryParse(mrpC.text) ?? 0.0,
-        'qty': q,
-        'freeQty': freeQ,
-        'rate': r,
-        'gstRate': gPer,
-        'taxable': taxable,
-        'cgst': isLocal ? taxAmt / 2 : 0.0,
-        'sgst': isLocal ? taxAmt / 2 : 0.0,
-        'igst': isLocal ? 0.0 : taxAmt,
-        'discountPer': dPer,
-        'discountRupees': discAmt,
-        'total': total,
-      });
-
-      selectedMed = null;
-      qtyC.text = "1";
-      freeC.text = "0";
-      discPerC.text = "0.0";
-    });
+    // Extract available batches for this medicine
+    List<BatchInfo> batches = [];
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (c) => WebItemEntryCard(
+        med: med,
+        srNo: itemToEdit != null ? itemToEdit.srNo : billItems.length + 1,
+        partyState: partyState,
+        shopState: shopState,
+        availableBatches: batches,
+        existingItem: itemToEdit,
+        onAdd: (newItem) {
+          setState(() {
+            if (editIndex != null) {
+              billItems[editIndex] = newItem;
+            } else {
+              billItems.add(newItem);
+            }
+          });
+          Navigator.pop(context);
+        },
+        onCancel: () => Navigator.pop(context),
+      ),
+    );
   }
 
-  double get subTotal => billItems.fold(0.0, (sum, it) => sum + (it['total'] as num).toDouble());
-  double get totalTaxable => billItems.fold(0.0, (sum, it) => sum + (it['taxable'] as num).toDouble());
-  double get totalCGST => billItems.fold(0.0, (sum, it) => sum + (it['cgst'] as num).toDouble());
-  double get totalSGST => billItems.fold(0.0, (sum, it) => sum + (it['sgst'] as num).toDouble());
-  double get totalIGST => billItems.fold(0.0, (sum, it) => sum + (it['igst'] as num).toDouble());
+  // --- TOTAL CALCULATIONS ---
+  double get subTotal => billItems.fold(0.0, (sum, it) => sum + it.total);
+  double get totalTaxable => billItems.fold(0.0, (sum, it) => sum + (it.qty * it.rate - it.discountRupees));
+  double get totalCGST => billItems.fold(0.0, (sum, it) => sum + it.cgst);
+  double get totalSGST => billItems.fold(0.0, (sum, it) => sum + it.sgst);
+  double get totalIGST => billItems.fold(0.0, (sum, it) => sum + it.igst);
   double get extraDiscount => double.tryParse(extraDiscC.text) ?? 0.0;
   double get rawGrandTotal => (subTotal - extraDiscount);
   double get finalGrandTotal => rawGrandTotal.roundToDouble();
   double get roundOff => double.parse((finalGrandTotal - rawGrandTotal).toStringAsFixed(2));
 
-  Future<void> _saveInvoice(PharoahWebManager webPh) async {
+  Future<void> _saveInvoice(PharoahWebManager webPh, {bool andPrint = false}) async {
     if (billItems.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Cannot save empty bill!")));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Cannot save empty bill! Please add products.")));
       return;
     }
 
     setState(() => isSaving = true);
 
-    String pName = selectedParty != null ? selectedParty!['name'].toString() : "CASH";
+    String pName = selectedParty != null ? (selectedParty!['name'] ?? "CASH").toString() : "CASH";
     String pGst = selectedParty != null ? (selectedParty!['gst'] ?? "N/A").toString() : "N/A";
     String pState = selectedParty != null ? (selectedParty!['state'] ?? "Rajasthan").toString() : "Rajasthan";
 
-    final newSale = {
+    final newSaleMap = {
       'id': 'WEB-S-${DateTime.now().millisecondsSinceEpoch}',
       'billNo': billNoC.text.trim(),
-      'partyId': selectedParty != null ? selectedParty!['id'] : 'cash',
+      'partyId': selectedParty != null ? (selectedParty!['id'] ?? 'cash') : 'cash',
       'partyName': pName,
       'partyGstin': pGst,
       'partyState': pState,
@@ -177,12 +112,12 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
       'extraDiscount': extraDiscount,
       'roundOff': roundOff,
       'status': 'Active',
-      'items': billItems,
+      'items': billItems.map((i) => i.toMap()).toList(),
       'sourceTag': 'WEB-PORTAL',
     };
 
-    // 1. Update in Web Memory via clean manager method
-    webPh.addSaleAndSync(newSale);
+    // 1. Update in Web Memory
+    webPh.addSaleAndSync(newSaleMap);
 
     // 2. Push Updated Database to Cloud Relay
     try {
@@ -213,17 +148,24 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
         Uri.parse(WebCloudConfig.cloudRelayEndpoint),
         headers: WebCloudConfig.standardHeaders,
         body: jsonEncode(payload),
-      ).timeout(const Duration(seconds: 20));
-
+      ).timeout(const Duration(seconds: 25));
     } catch (e) {
       debugPrint("Web Sync Push Error: $e");
     }
 
     setState(() => isSaving = false);
 
+    // 3. Print if requested
+    if (andPrint) {
+      final saleObj = Sale.fromMap(newSaleMap);
+      final partyObj = selectedParty != null ? Party.fromMap(selectedParty!) : Party(id: 'cash', name: 'CASH');
+      final shopProfile = CompanyProfile.fromMap(webPh.companyProfile);
+      await SaleInvoicePdf.generate(saleObj, partyObj, shopProfile);
+    }
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("✅ Invoice ${billNoC.text} Saved & Synced!"), backgroundColor: Colors.green),
+        SnackBar(content: Text("✅ Invoice ${billNoC.text} Saved & Synced Live!"), backgroundColor: Colors.green),
       );
       widget.onBack();
     }
@@ -236,29 +178,35 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // --- TOP CONTROLS BAR ---
         _buildHeaderBar(webPh),
         const SizedBox(height: 18),
+
+        // --- TWO-COLUMN WORKSTATION LAYOUT ---
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Left (70%): Product Search & Cart Table
             Expanded(
               flex: 7,
               child: Column(
                 children: [
-                  _buildProductInputCard(webPh),
+                  _buildProductSearchCard(webPh),
                   const SizedBox(height: 16),
-                  _buildItemsDataTable(),
+                  _buildCartTable(webPh),
                 ],
               ),
             ),
             const SizedBox(width: 18),
+
+            // Right (30%): Customer Box & Grand Total Summary
             Expanded(
               flex: 3,
               child: Column(
                 children: [
                   _buildCustomerCard(webPh),
                   const SizedBox(height: 16),
-                  _buildGrandTotalSummaryCard(webPh),
+                  _buildGrandTotalCard(webPh),
                 ],
               ),
             ),
@@ -298,6 +246,8 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
             style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900, letterSpacing: 0.5),
           ),
           const Spacer(),
+
+          // Bill Number
           SizedBox(
             width: 130,
             height: 36,
@@ -315,6 +265,8 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
             ),
           ),
           const SizedBox(width: 12),
+
+          // Cash / Credit Segment
           SegmentedButton<String>(
             segments: const [
               ButtonSegment(value: 'CASH', label: Text('CASH', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
@@ -328,7 +280,7 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
     );
   }
 
-  Widget _buildProductInputCard(PharoahWebManager webPh) {
+  Widget _buildProductSearchCard(PharoahWebManager webPh) {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -339,118 +291,43 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                flex: 5,
-                child: Autocomplete<Map<String, dynamic>>(
-                  displayStringForOption: (option) => "${option['name']} (${option['packing']})",
-                  optionsBuilder: (textEditingValue) {
-                    if (textEditingValue.text.isEmpty) return const Iterable.empty();
-                    return webPh.medicines.where((m) =>
-                        (m['name'] ?? '').toString().toLowerCase().contains(textEditingValue.text.toLowerCase())).cast<Map<String, dynamic>>();
-                  },
-                  onSelected: _onProductSelected,
-                  fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                    return TextField(
-                      controller: controller,
-                      focusNode: focusNode,
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                      decoration: InputDecoration(
-                        labelText: "SEARCH PRODUCT / MEDICINE",
-                        labelStyle: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold),
-                        hintText: "Type medicine name (e.g. DOLO, PAN 40)...",
-                        hintStyle: const TextStyle(color: Colors.white24, fontSize: 11),
-                        prefixIcon: const Icon(Icons.search, color: Color(0xFF38BDF8), size: 18),
-                        filled: true,
-                        fillColor: Colors.black26,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      ),
-                    );
-                  },
+          Autocomplete<Map<String, dynamic>>(
+            displayStringForOption: (option) => "${option['name']} (${option['packing']})",
+            optionsBuilder: (textEditingValue) {
+              if (textEditingValue.text.isEmpty) return const Iterable.empty();
+              return webPh.medicines.where((m) =>
+                  (m['name'] ?? '').toString().toLowerCase().contains(textEditingValue.text.toLowerCase())).cast<Map<String, dynamic>>();
+            },
+            onSelected: (medMap) {
+              final medObj = Medicine.fromMap(medMap);
+              _openItemEntry(medObj);
+            },
+            fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+              return TextField(
+                controller: controller,
+                focusNode: focusNode,
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                decoration: InputDecoration(
+                  labelText: "SEARCH PRODUCT TO ADD TO INVOICE",
+                  labelStyle: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold),
+                  hintText: "Type medicine name (e.g. DOLO 650, PAN 40)...",
+                  hintStyle: const TextStyle(color: Colors.white24, fontSize: 11),
+                  prefixIcon: const Icon(Icons.search, color: Color(0xFF38BDF8), size: 18),
+                  suffixIcon: const Icon(Icons.add_circle_outline, color: Colors.cyanAccent, size: 20),
+                  filled: true,
+                  fillColor: Colors.black26,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(flex: 2, child: _miniInput("BATCH", batchC)),
-              const SizedBox(width: 10),
-              Expanded(flex: 2, child: _miniInput("EXPIRY", expC)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _ratePill("RATE A", rateType == "A", () => _applyRateLevel("A")),
-              const SizedBox(width: 6),
-              _ratePill("RATE B", rateType == "B", () => _applyRateLevel("B")),
-              const SizedBox(width: 6),
-              _ratePill("RATE C", rateType == "C", () => _applyRateLevel("C")),
-              const SizedBox(width: 14),
-
-              Expanded(child: _miniInput("MRP ₹", mrpC, isNum: true)),
-              const SizedBox(width: 8),
-              Expanded(child: _miniInput("RATE ₹", rateC, isNum: true)),
-              const SizedBox(width: 8),
-              Expanded(child: _miniInput("QTY", qtyC, isNum: true, isHighlight: true)),
-              const SizedBox(width: 8),
-              Expanded(child: _miniInput("FREE", freeC, isNum: true)),
-              const SizedBox(width: 8),
-              Expanded(child: _miniInput("DISC %", discPerC, isNum: true)),
-              const SizedBox(width: 8),
-              Expanded(child: _miniInput("GST %", gstC, isNum: true)),
-              const SizedBox(width: 14),
-
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2563EB),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  elevation: 0,
-                ),
-                onPressed: _addItemToCart,
-                icon: const Icon(Icons.add_rounded, size: 18),
-                label: const Text("ADD ITEM", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11)),
-              ),
-            ],
+              );
+            },
           ),
         ],
       ),
     );
   }
 
-  Widget _ratePill(String label, bool isSelected, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF2563EB) : Colors.black26,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: isSelected ? const Color(0xFF60A5FA) : Colors.white10),
-        ),
-        child: Text(label, style: TextStyle(color: isSelected ? Colors.white : Colors.white54, fontSize: 9.5, fontWeight: FontWeight.bold)),
-      ),
-    );
-  }
-
-  Widget _miniInput(String label, TextEditingController ctrl, {bool isNum = false, bool isHighlight = false}) {
-    return TextField(
-      controller: ctrl,
-      keyboardType: isNum ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text,
-      style: TextStyle(color: isHighlight ? Colors.cyanAccent : Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: TextStyle(color: isHighlight ? Colors.cyanAccent : Colors.white54, fontSize: 8.5, fontWeight: FontWeight.bold),
-        filled: true,
-        fillColor: isHighlight ? const Color(0xFF2563EB).withOpacity(0.2) : Colors.black26,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      ),
-    );
-  }
-
-  Widget _buildItemsDataTable() {
+  Widget _buildCartTable(PharoahWebManager webPh) {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -502,7 +379,7 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
                     6: FixedColumnWidth(70),
                     7: FixedColumnWidth(50),
                     8: FixedColumnWidth(85),
-                    9: FixedColumnWidth(45),
+                    9: FixedColumnWidth(70),
                   },
                   children: [
                     TableRow(
@@ -517,29 +394,44 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
                         _th("RATE"),
                         _th("GST%"),
                         _th("TOTAL"),
-                        _th("DEL"),
+                        _th("ACTIONS"),
                       ],
                     ),
                     ...billItems.asMap().entries.map((entry) {
                       int idx = entry.key;
-                      var it = entry.value;
-                      String qtyDisp = "${(it['qty'] as num).toInt()}${it['freeQty'] > 0 ? ' + ${it['freeQty'].toInt()}' : ''}";
+                      BillItem it = entry.value;
+                      String qtyDisp = "${it.qty.toInt()}${it.freeQty > 0 ? ' + ${it.freeQty.toInt()}' : ''}";
 
                       return TableRow(
                         decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Colors.white10))),
                         children: [
                           _td("${idx + 1}"),
-                          _td(it['name'].toString(), isLeft: true, isBold: true),
-                          _td(it['packing'].toString()),
-                          _td(it['batch'].toString()),
-                          _td(it['exp'].toString()),
+                          _td(it.name, isLeft: true, isBold: true),
+                          _td(it.packing),
+                          _td(it.batch),
+                          _td(it.exp),
                           _td(qtyDisp, isBold: true, color: Colors.cyanAccent),
-                          _td("₹${(it['rate'] as num).toStringAsFixed(2)}"),
-                          _td("${(it['gstRate'] as num).toInt()}%"),
-                          _td("₹${(it['total'] as num).toStringAsFixed(2)}", isBold: true, color: Colors.greenAccent),
-                          IconButton(
-                            icon: const Icon(Icons.delete_outline, size: 16, color: Colors.redAccent),
-                            onPressed: () => setState(() => billItems.removeAt(idx)),
+                          _td("₹${it.rate.toStringAsFixed(2)}"),
+                          _td("${it.gstRate.toInt()}%"),
+                          _td("₹${it.total.toStringAsFixed(2)}", isBold: true, color: Colors.greenAccent),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.edit_note_rounded, size: 16, color: Color(0xFF38BDF8)),
+                                onPressed: () {
+                                  final medMap = webPh.medicines.firstWhere(
+                                    (m) => m['id'] == it.medicineID || m['name'] == it.name,
+                                    orElse: () => {'name': it.name, 'packing': it.packing},
+                                  );
+                                  _openItemEntry(Medicine.fromMap(medMap), itemToEdit: it, editIndex: idx);
+                                },
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline, size: 16, color: Colors.redAccent),
+                                onPressed: () => setState(() => billItems.removeAt(idx)),
+                              ),
+                            ],
                           ),
                         ],
                       );
@@ -593,7 +485,7 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(selectedParty!['name'].toString().toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 13)),
+                        Text((selectedParty!['name'] ?? '').toString().toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 13)),
                         const SizedBox(height: 3),
                         Text("GST: ${selectedParty!['gst'] ?? 'N/A'} | State: ${selectedParty!['state'] ?? 'Rajasthan'}", style: const TextStyle(color: Colors.white54, fontSize: 10)),
                       ],
@@ -637,7 +529,7 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
     );
   }
 
-  Widget _buildGrandTotalSummaryCard(PharoahWebManager webPh) {
+  Widget _buildGrandTotalCard(PharoahWebManager webPh) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -660,7 +552,7 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
           if (totalCGST > 0) _sumRow("Total CGST (+)", "₹${totalCGST.toStringAsFixed(2)}"),
           if (totalSGST > 0) _sumRow("Total SGST (+)", "₹${totalSGST.toStringAsFixed(2)}"),
           if (totalIGST > 0) _sumRow("Total IGST (+)", "₹${totalIGST.toStringAsFixed(2)}"),
-          
+
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -701,9 +593,10 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
           ),
           const SizedBox(height: 25),
 
+          // Save Only Button
           SizedBox(
             width: double.infinity,
-            height: 48,
+            height: 46,
             child: ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2563EB),
@@ -711,14 +604,31 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 elevation: 0,
               ),
-              onPressed: isSaving ? null : () => _saveInvoice(webPh),
+              onPressed: isSaving ? null : () => _saveInvoice(webPh, andPrint: false),
               icon: isSaving
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Icon(Icons.check_circle_rounded, size: 20),
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.check_circle_rounded, size: 18),
               label: Text(
-                isSaving ? "SAVING & SYNCING..." : "SAVE & SYNC INVOICE",
-                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 0.5),
+                isSaving ? "SAVING..." : "SAVE & SYNC INVOICE",
+                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 11.5, letterSpacing: 0.5),
               ),
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Save & Print Button
+          SizedBox(
+            width: double.infinity,
+            height: 42,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF38BDF8),
+                side: const BorderSide(color: Color(0xFF38BDF8), width: 1.2),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: isSaving ? null : () => _saveInvoice(webPh, andPrint: true),
+              icon: const Icon(Icons.print_rounded, size: 16),
+              label: const Text("SAVE & PRINT INVOICE", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
             ),
           ),
         ],
