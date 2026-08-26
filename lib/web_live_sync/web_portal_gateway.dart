@@ -7,6 +7,7 @@ import 'components/web_kpi_strip.dart';
 import 'components/web_module_grid.dart';
 import 'components/web_invoice_feed.dart';
 import 'components/web_login_card.dart';
+import 'sub_views/web_billing/web_new_sale_view.dart';
 
 class WebPortalGateway extends StatefulWidget {
   const WebPortalGateway({super.key});
@@ -16,7 +17,7 @@ class WebPortalGateway extends StatefulWidget {
 }
 
 class _WebPortalGatewayState extends State<WebPortalGateway> {
-  String currentView = "HOME";
+  String currentView = "HOME"; // "HOME", "BILLING", "GO_SALE", etc.
   String currentViewTitle = "MAIN BUSINESS MODULES";
   String searchQuery = "";
 
@@ -30,6 +31,7 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
   }
 
   void _handleActionTap(String actionTitle, IconData icon, String navKey) {
+    // 1. Auto-add to Dynamic Recent Shortcuts
     if (!recentShortcuts.any((item) => item['title'] == actionTitle)) {
       setState(() {
         recentShortcuts.insert(0, {
@@ -43,13 +45,18 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
       });
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text("🚀 Opening: $actionTitle"),
-        backgroundColor: const Color(0xFF0F766E),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    // 2. Active Screen Router
+    if (navKey == "GO_SALE") {
+      _navigateToHub("GO_SALE", "NEW SALE INVOICING");
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("🚀 Opening: $actionTitle"),
+          backgroundColor: const Color(0xFF0F766E),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   void _removeShortcut(int index) {
@@ -68,32 +75,7 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
   Widget build(BuildContext context) {
     final webPh = Provider.of<PharoahWebManager>(context);
 
-    // Auto-Logging in Splash on Page Reload
-    if (webPh.isAutoLoggingIn || webPh.isLoading) {
-      return const Scaffold(
-        backgroundColor: Color(0xFF0F172A),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(color: Colors.cyanAccent),
-              SizedBox(height: 25),
-              Text(
-                "Connecting to Store Cloud Workstation...",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    // State 1: Unauthenticated -> Show Login Form (with Auto-Remembered Key)
+    // State 1: Unauthenticated -> Show Login Form
     if (!webPh.isAuthenticated) {
       return Scaffold(
         backgroundColor: const Color(0xFF0F172A),
@@ -109,9 +91,9 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
       );
     }
 
-    // State 2: Authenticated -> Master Assembly Shell
+    // State 2: Authenticated Workstation
     return Scaffold(
-      backgroundColor: const Color(0xFF0B132B),
+      backgroundColor: const Color(0xFF0B132B), // Deep Sapphire Canvas
       appBar: WebTopBar(
         webPh: webPh,
         onSearchChanged: (v) => setState(() => searchQuery = v),
@@ -119,6 +101,7 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
       body: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 1. Dynamic Recent Shortcuts Sidebar
           WebRecentSidebar(
             currentView: currentView,
             recentShortcuts: recentShortcuts,
@@ -127,37 +110,53 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
             onRemoveShortcut: _removeShortcut,
             onClearAll: _clearAllRecents,
           ),
+
+          // 2. Main Workspace
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Breadcrumbs Bar
                   _buildBreadcrumbs(),
                   const SizedBox(height: 16),
-                  WebKpiStrip(webPh: webPh),
-                  const SizedBox(height: 20),
-                  WebModuleGrid(
-                    currentView: currentView,
-                    onHubTap: _navigateToHub,
-                    onActionTap: _handleActionTap,
-                    onBackToHome: () => _navigateToHub("HOME", "MAIN BUSINESS MODULES"),
-                  ),
-                  const SizedBox(height: 25),
-                  if (currentView == "HOME")
-                    WebInvoiceFeed(
-                      webPh: webPh,
-                      onViewBill: (bill) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text("Viewing Invoice: ${bill['billNo'] ?? ''}")),
-                        );
-                      },
-                      onPrintBill: (bill) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text("Printing Invoice: ${bill['billNo'] ?? ''}")),
-                        );
-                      },
+
+                  // Show Specific Screen or Main Modules
+                  if (currentView == "GO_SALE")
+                    WebNewSaleView(
+                      onBack: () => _navigateToHub("BILLING", "BILLING & SALES"),
+                    )
+                  else ...[
+                    // Compact Live KPI Strip
+                    WebKpiStrip(webPh: webPh),
+                    const SizedBox(height: 20),
+
+                    // Module Grid (Level 0 / Level 1)
+                    WebModuleGrid(
+                      currentView: currentView,
+                      onHubTap: _navigateToHub,
+                      onActionTap: _handleActionTap,
+                      onBackToHome: () => _navigateToHub("HOME", "MAIN BUSINESS MODULES"),
                     ),
+                    const SizedBox(height: 25),
+
+                    // Live Invoices Feed (Home View)
+                    if (currentView == "HOME")
+                      WebInvoiceFeed(
+                        webPh: webPh,
+                        onViewBill: (bill) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text("Viewing Invoice: ${bill['billNo'] ?? ''}")),
+                          );
+                        },
+                        onPrintBill: (bill) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text("Printing Invoice: ${bill['billNo'] ?? ''}")),
+                          );
+                        },
+                      ),
+                  ],
                 ],
               ),
             ),
@@ -196,7 +195,13 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
           const Spacer(),
           if (currentView != "HOME")
             InkWell(
-              onTap: () => _navigateToHub("HOME", "MAIN BUSINESS MODULES"),
+              onTap: () {
+                if (currentView == "GO_SALE") {
+                  _navigateToHub("BILLING", "BILLING & SALES");
+                } else {
+                  _navigateToHub("HOME", "MAIN BUSINESS MODULES");
+                }
+              },
               child: Row(
                 children: const [
                   Icon(Icons.arrow_back_rounded, color: Colors.white54, size: 14),
