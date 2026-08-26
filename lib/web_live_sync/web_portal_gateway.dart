@@ -1,27 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'pharoah_web_manager.dart';
 
-class WebPortalGateway extends StatefulWidget {
+class WebPortalGateway extends StatelessWidget {
   const WebPortalGateway({super.key});
 
   @override
-  State<WebPortalGateway> createState() => _WebPortalGatewayState();
-}
-
-class _WebPortalGatewayState extends State<WebPortalGateway> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<PharoahWebManager>(context, listen: false).checkCloudHandshake();
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final webPh = Provider.of<PharoahWebManager>(context);
-
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
       appBar: AppBar(
@@ -41,14 +24,9 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
               children: [
                 Icon(Icons.circle, color: Colors.greenAccent, size: 8),
                 SizedBox(width: 6),
-                Text("CLOUD ACTIVE", style: TextStyle(color: Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.bold)),
+                Text("LIVE CLOUD ACTIVE", style: TextStyle(color: Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.bold)),
               ],
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: Colors.white70),
-            tooltip: "Refresh Cloud Data",
-            onPressed: () => webPh.checkCloudHandshake(),
           ),
         ],
       ),
@@ -107,14 +85,14 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
                     const SizedBox(height: 25),
                     const Divider(color: Colors.white10),
                     const SizedBox(height: 15),
-                    Row(
+                    const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.storefront_rounded, size: 18, color: Colors.cyanAccent),
-                        const SizedBox(width: 8),
+                        Icon(Icons.storefront_rounded, size: 18, color: Colors.cyanAccent),
+                        SizedBox(width: 8),
                         Text(
-                          webPh.companyName.toUpperCase(),
-                          style: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold, fontSize: 14),
+                          "PHAROAH STORE",
+                          style: TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold, fontSize: 14),
                         ),
                       ],
                     ),
