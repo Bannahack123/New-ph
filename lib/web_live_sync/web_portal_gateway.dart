@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'pharoah_web_manager.dart';
+import 'components/web_top_bar.dart';
+import 'components/web_recent_sidebar.dart';
+import 'components/web_kpi_strip.dart';
+import 'components/web_module_grid.dart';
+import 'components/web_invoice_feed.dart';
+import 'components/web_login_card.dart';
 
 class WebPortalGateway extends StatefulWidget {
   const WebPortalGateway({super.key});
@@ -10,487 +16,167 @@ class WebPortalGateway extends StatefulWidget {
 }
 
 class _WebPortalGatewayState extends State<WebPortalGateway> {
-  final storeKeyC = TextEditingController();
-  final usernameC = TextEditingController();
-  final passwordC = TextEditingController();
-  bool isObscured = true;
+  String currentView = "HOME";
+  String currentViewTitle = "MAIN BUSINESS MODULES";
+  String searchQuery = "";
 
-  @override
-  void dispose() {
-    storeKeyC.dispose();
-    usernameC.dispose();
-    passwordC.dispose();
-    super.dispose();
+  // Dynamic Recent Shortcuts List
+  List<Map<String, dynamic>> recentShortcuts = [];
+
+  void _navigateToHub(String hubId, String hubTitle) {
+    setState(() {
+      currentView = hubId;
+      currentViewTitle = hubTitle;
+    });
   }
 
-  void _handleLogin(PharoahWebManager webPh) async {
-    final token = storeKeyC.text.trim();
-    final user = usernameC.text.trim();
-    final pass = passwordC.text.trim();
-
-    if (token.isEmpty || user.isEmpty || pass.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("All 3 fields (Store Key, User, Password) are required!"),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
+  void _handleActionTap(String actionTitle, IconData icon, String navKey) {
+    // Auto-add to Dynamic Recent Shortcuts
+    if (!recentShortcuts.any((item) => item['title'] == actionTitle)) {
+      setState(() {
+        recentShortcuts.insert(0, {
+          "title": actionTitle,
+          "icon": icon,
+          "module": navKey,
+        });
+        if (recentShortcuts.length > 8) {
+          recentShortcuts.removeLast();
+        }
+      });
     }
 
-    await webPh.loginWithStoreKey(
-      storeToken: token,
-      username: user,
-      password: pass,
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("🚀 Opening: $actionTitle"),
+        backgroundColor: const Color(0xFF0F766E),
+        duration: const Duration(seconds: 2),
+      ),
     );
+  }
+
+  void _removeShortcut(int index) {
+    setState(() {
+      recentShortcuts.removeAt(index);
+    });
+  }
+
+  void _clearAllRecents() {
+    setState(() {
+      recentShortcuts.clear();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final webPh = Provider.of<PharoahWebManager>(context);
 
-    if (webPh.isLoading) {
-      return const Scaffold(
-        backgroundColor: Color(0xFF0F172A),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(color: Colors.cyanAccent),
-              SizedBox(height: 25),
-              Text(
-                "Connecting to Store Cloud Workstation...",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1,
-                ),
-              ),
-            ],
+    // State 1: Unauthenticated -> Show Isolated Login Form
+    if (!webPh.isAuthenticated) {
+      return Scaffold(
+        backgroundColor: const Color(0xFF0F172A),
+        body: WebLoginCard(
+          errorMessage: webPh.errorMessage,
+          isLoading: webPh.isLoading,
+          onLogin: (token, user, pass) => webPh.loginWithStoreKey(
+            storeToken: token,
+            username: user,
+            password: pass,
           ),
         ),
       );
     }
 
-    if (!webPh.isAuthenticated) {
-      return _buildLoginView(webPh);
-    }
-
-    return _buildConnectedDashboard(webPh);
-  }
-
-  // =========================================================================
-  // 1. CLEAN 3-FIELD LOGIN VIEW
-  // =========================================================================
-  Widget _buildLoginView(PharoahWebManager webPh) {
+    // State 2: Authenticated -> Master Assembly Shell
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Container(
-            width: 460,
-            padding: const EdgeInsets.all(35),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E293B),
-              borderRadius: BorderRadius.circular(25),
-              border: Border.all(color: Colors.cyanAccent.withOpacity(0.3), width: 1.5),
-              boxShadow: const [
-                BoxShadow(color: Colors.black54, blurRadius: 25, offset: Offset(0, 10))
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: Colors.cyanAccent.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.storefront_rounded, size: 50, color: Colors.cyanAccent),
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  "PHAROAH WEB WORKSTATION",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  "Enter Store Key & Credentials to login",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white54, fontSize: 11),
-                ),
-                const SizedBox(height: 25),
+      appBar: WebTopBar(
+        webPh: webPh,
+        onSearchChanged: (v) => setState(() => searchQuery = v),
+      ),
+      body: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 1. Dynamic Recent Shortcuts Sidebar
+          WebRecentSidebar(
+            currentView: currentView,
+            recentShortcuts: recentShortcuts,
+            onHomeTap: () => _navigateToHub("HOME", "MAIN BUSINESS MODULES"),
+            onActionTap: _handleActionTap,
+            onRemoveShortcut: _removeShortcut,
+            onClearAll: _clearAllRecents,
+          ),
 
-                if (webPh.errorMessage.isNotEmpty) ...[
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    margin: const EdgeInsets.only(bottom: 20),
-                    decoration: BoxDecoration(
-                      color: Colors.redAccent.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.redAccent.withOpacity(0.4)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.error_outline, color: Colors.redAccent, size: 18),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            webPh.errorMessage,
-                            style: const TextStyle(
-                              color: Colors.redAccent,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+          // 2. Main Workspace
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Breadcrumbs & Back Navigation
+                  _buildBreadcrumbs(),
+                  const SizedBox(height: 20),
+
+                  // 4-Card Live KPI Strip
+                  WebKpiStrip(webPh: webPh),
+                  const SizedBox(height: 25),
+
+                  // Level 0 / Level 1 Module Grid
+                  WebModuleGrid(
+                    currentView: currentView,
+                    onHubTap: _navigateToHub,
+                    onActionTap: _handleActionTap,
                   ),
+                  const SizedBox(height: 30),
+
+                  // Live Invoices Feed Table (Only on Home View)
+                  if (currentView == "HOME")
+                    WebInvoiceFeed(
+                      webPh: webPh,
+                      onViewBill: (bill) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text("Viewing Bill: ${bill['billNo'] ?? ''}")),
+                        );
+                      },
+                      onPrintBill: (bill) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text("Printing Invoice: ${bill['billNo'] ?? ''}")),
+                        );
+                      },
+                    ),
                 ],
-
-                _buildField(storeKeyC, "STORE ACCESS KEY", Icons.vpn_key_rounded,
-                    hint: "e.g. PH-LIVE-9842-X7K2", isCaps: true),
-                const SizedBox(height: 15),
-                _buildField(usernameC, "USERNAME", Icons.person_rounded, hint: "e.g. admin"),
-                const SizedBox(height: 15),
-                _buildField(
-                  passwordC,
-                  "PASSWORD",
-                  Icons.lock_rounded,
-                  isPass: true,
-                  isObscured: isObscured,
-                  onToggleObscure: () => setState(() => isObscured = !isObscured),
-                ),
-                const SizedBox(height: 30),
-
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.cyanAccent,
-                      foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      elevation: 0,
-                    ),
-                    onPressed: () => _handleLogin(webPh),
-                    icon: const Icon(Icons.login_rounded, size: 20),
-                    label: const Text(
-                      "LOGIN TO WORKSTATION",
-                      style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 0.8),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  "Powered by Pharoah ERP • Cloud Relay Engine",
-                  style: TextStyle(color: Colors.white24, fontSize: 9),
-                ),
-              ],
+              ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildField(TextEditingController ctrl, String label, IconData icon,
-      {bool isPass = false,
-      bool isCaps = false,
-      String hint = "",
-      bool isObscured = false,
-      VoidCallback? onToggleObscure}) {
-    return TextField(
-      controller: ctrl,
-      obscureText: isPass ? isObscured : false,
-      textCapitalization: isCaps ? TextCapitalization.characters : TextCapitalization.none,
-      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold),
-        hintText: hint,
-        hintStyle: const TextStyle(color: Colors.white24, fontSize: 12),
-        prefixIcon: Icon(icon, color: Colors.cyanAccent, size: 20),
-        suffixIcon: isPass
-            ? IconButton(
-                icon: Icon(isObscured ? Icons.visibility_off : Icons.visibility,
-                    color: Colors.white54, size: 18),
-                onPressed: onToggleObscure,
-              )
-            : null,
-        filled: true,
-        fillColor: Colors.black26,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
-      ),
-    );
-  }
-
-  // =========================================================================
-  // 2. CONNECTED "WELCOME TO PHAROAH ERP" DASHBOARD
-  // =========================================================================
-  Widget _buildConnectedDashboard(PharoahWebManager webPh) {
-    double totalSalesAmt = 0;
-    for (var s in webPh.sales) {
-      totalSalesAmt += (s['totalAmount'] as num? ?? 0).toDouble();
-    }
-
-    return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF1E1B4B),
-        title: Row(
-          children: [
-            const Icon(Icons.storefront_rounded, color: Colors.cyanAccent, size: 22),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  webPh.companyName.toUpperCase(),
-                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: Colors.white),
-                ),
-                Text(
-                  "Key: ${webPh.activeStoreToken} • FY: ${webPh.financialYear}",
-                  style: const TextStyle(fontSize: 10, color: Colors.cyanAccent),
-                ),
-              ],
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.sync_rounded, color: Colors.cyanAccent),
-            tooltip: "Refresh Live Data",
-            onPressed: () => webPh.refreshStoreData(),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout_rounded, color: Colors.redAccent),
-            tooltip: "Sign Out",
-            onPressed: () => webPh.signOut(),
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(25),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // --- PROMINENT WELCOME HERO CARD ---
-            Center(
-              child: Container(
-                width: double.infinity,
-                constraints: const BoxConstraints(maxWidth: 800),
-                padding: const EdgeInsets.all(30),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF1E1B4B), Color(0xFF1E293B)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: Colors.cyanAccent.withOpacity(0.35), width: 1.5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.cyanAccent.withOpacity(0.08),
-                      blurRadius: 25,
-                      offset: const Offset(0, 8),
-                    )
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.cyanAccent.withOpacity(0.12),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.verified_rounded, size: 50, color: Colors.cyanAccent),
-                    ),
-                    const SizedBox(height: 18),
-                    const Text(
-                      "Welcome to Pharoah ERP",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 26,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.8,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      "Your Cloud Workstation is Connected & Live with ${webPh.companyName.toUpperCase()}",
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 25),
+    );
+  }
 
-            // --- LIVE KPI METRICS (4 CARDS) ---
-            Center(
-              child: Container(
-                constraints: const BoxConstraints(maxWidth: 800),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _kpiCard("TOTAL SALES", "₹${totalSalesAmt.toStringAsFixed(0)}",
-                          "${webPh.sales.length} Bills", Icons.trending_up_rounded, Colors.greenAccent),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _kpiCard("MEDICINES", "${webPh.medicines.length}", "Catalog Items",
-                          Icons.medication_rounded, Colors.cyanAccent),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _kpiCard("PARTIES", "${webPh.parties.length}", "Ledgers",
-                          Icons.people_alt_rounded, Colors.orangeAccent),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _kpiCard("PURCHASES", "${webPh.purchases.length}", "Inward Records",
-                          Icons.shopping_bag_rounded, Colors.purpleAccent),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 25),
-
-            // --- LIVE RECENT INVOICES FEED ---
-            Center(
-              child: Container(
-                constraints: const BoxConstraints(maxWidth: 800),
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1E293B),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white10),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                          children: [
-                            const Icon(Icons.receipt_long_rounded, color: Colors.cyanAccent, size: 20),
-                            const SizedBox(width: 10),
-                            const Text(
-                              "LIVE STORE INVOICE FEED",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                            const Spacer(),
-                            Text("${webPh.sales.length} Total Bills",
-                                style: const TextStyle(color: Colors.white54, fontSize: 11)),
-                          ],
-                        ),
-                        const Divider(color: Colors.white10, height: 25),
-
-                        if (webPh.sales.isEmpty)
-                          const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(30),
-                              child: Text(
-                                "No sales records found in this store database yet.",
-                                style: TextStyle(color: Colors.white38, fontSize: 12),
-                              ),
-                            ),
-                          )
-                        else
-                          ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: webPh.sales.length > 10 ? 10 : webPh.sales.length,
-                            itemBuilder: (c, i) {
-                              final s = webPh.sales.reversed.toList()[i];
-                              return Container(
-                                margin: const EdgeInsets.only(bottom: 8),
-                                decoration: BoxDecoration(
-                                  color: Colors.black26,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: ListTile(
-                                  dense: true,
-                                  leading: const CircleAvatar(
-                                    radius: 14,
-                                    backgroundColor: Colors.green,
-                                    child: Text("S",
-                                        style: TextStyle(
-                                            fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold)),
-                                  ),
-                                  title: Text(
-                                    s['partyName'] ?? 'CASH',
-                                    style: const TextStyle(
-                                        color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                                  ),
-                                  subtitle: Text(
-                                    "Bill #${s['billNo'] ?? 'N/A'} • ${s['date'] != null ? s['date'].toString().substring(0, 10) : ''}",
-                                    style: const TextStyle(color: Colors.white54, fontSize: 10),
-                                  ),
-                                  trailing: Text(
-                                    "₹${(s['totalAmount'] as num? ?? 0).toStringAsFixed(2)}",
-                                    style: const TextStyle(
-                                        color: Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 13),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
+  Widget _buildBreadcrumbs() {
+    return Row(
+      children: [
+        InkWell(
+          onTap: () => _navigateToHub("HOME", "MAIN BUSINESS MODULES"),
+          child: const Text("Home",
+              style: TextStyle(color: Colors.cyanAccent, fontSize: 11, fontWeight: FontWeight.bold)),
+        ),
+        if (currentView != "HOME") ...[
+          const SizedBox(width: 6),
+          const Icon(Icons.chevron_right_rounded, color: Colors.white38, size: 16),
+          const SizedBox(width: 6),
+          Text(currentViewTitle,
+              style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+        ],
+        const Spacer(),
+        if (currentView != "HOME")
+          TextButton.icon(
+            style: TextButton.styleFrom(foregroundColor: Colors.white70),
+            onPressed: () => _navigateToHub("HOME", "MAIN BUSINESS MODULES"),
+            icon: const Icon(Icons.arrow_back_rounded, size: 16),
+            label: const Text("Back to All Modules", style: TextStyle(fontSize: 11)),
           ),
-        );
-      }
-
-      Widget _kpiCard(String title, String value, String sub, IconData icon, Color color) {
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1E293B),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: color.withOpacity(0.25)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(title,
-                      style: const TextStyle(
-                          color: Colors.white54, fontSize: 8.5, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-                  Icon(icon, color: color, size: 18),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(value, style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.w900)),
-              const SizedBox(height: 3),
-              Text(sub, style: const TextStyle(color: Colors.white38, fontSize: 8.5)),
-            ],
-          ),
-        );
-      }
-    }
+      ],
+    );
+  }
+}
