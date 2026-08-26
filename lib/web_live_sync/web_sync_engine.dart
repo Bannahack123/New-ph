@@ -4,7 +4,6 @@ import 'package:http/http.dart' as http;
 import 'web_cloud_config.dart';
 
 class WebSyncEngine {
-  /// 1. Fetch store data and verify credentials from Cloud Relay
   static Future<Map<String, dynamic>> fetchStoreData({
     required String storeToken,
     required String username,

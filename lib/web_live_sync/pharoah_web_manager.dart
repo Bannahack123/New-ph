@@ -9,7 +9,6 @@ class PharoahWebManager with ChangeNotifier {
   String errorMessage = "";
   String successMessage = "";
 
-  // Store & Session Metadata
   String activeStoreToken = "";
   String activeUsername = "";
   String activePassword = "";
@@ -17,7 +16,6 @@ class PharoahWebManager with ChangeNotifier {
   String financialYear = "2026-27";
   Map<String, dynamic> companyProfile = {};
 
-  // Live Business Records in Web Memory
   List<dynamic> sales = [];
   List<dynamic> medicines = [];
   List<dynamic> parties = [];
@@ -28,7 +26,6 @@ class PharoahWebManager with ChangeNotifier {
   List<dynamic> saleReturns = [];
   List<dynamic> purchaseReturns = [];
 
-  /// 1. Login with Store Key, Username & Password (Zero Google Auth Popups)
   Future<bool> loginWithStoreKey({
     required String storeToken,
     required String username,
@@ -70,7 +67,6 @@ class PharoahWebManager with ChangeNotifier {
     }
   }
 
-  /// 2. Refresh store data live from cloud relay
   Future<void> refreshStoreData() async {
     if (!isAuthenticated || activeStoreToken.isEmpty) return;
     isLoading = true;
@@ -94,7 +90,6 @@ class PharoahWebManager with ChangeNotifier {
     notifyListeners();
   }
 
-  /// 3. Helper to parse JSON files into live lists
   void _parseDownloadedFiles(Map<String, dynamic> files) {
     dynamic decodeJson(String fileName) {
       if (files.containsKey(fileName) && files[fileName] != null) {
@@ -118,7 +113,6 @@ class PharoahWebManager with ChangeNotifier {
     purchaseReturns = decodeJson('p_return.json') as List? ?? [];
   }
 
-  /// 4. Disconnect and Logout from Web Workstation
   void signOut() {
     isAuthenticated = false;
     activeStoreToken = "";

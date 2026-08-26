@@ -30,7 +30,7 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
 
     if (token.isEmpty || user.isEmpty || pass.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Store Key, Username & Password are required!"), backgroundColor: Colors.orange),
+        const SnackBar(content: Text("All 3 fields are required!"), backgroundColor: Colors.orange),
       );
       return;
     }
@@ -72,7 +72,6 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
     return _buildWorkstationDashboard(webPh);
   }
 
-  // --- 1. CLEAN 3-FIELD LOGIN VIEW ---
   Widget _buildLoginView(PharoahWebManager webPh) {
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
@@ -129,7 +128,7 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
                   ),
                 ],
 
-                _buildField(storeKeyC, "STORE ACCESS KEY", Icons.vpn_key_rounded, hint: "e.g. PH-LIVE-XXXX-XXXX", isCaps: true),
+                _buildField(storeKeyC, "STORE ACCESS KEY", Icons.vpn_key_rounded, hint: "e.g. PH-LIVE-9842-X7K2", isCaps: true),
                 const SizedBox(height: 15),
                 _buildField(usernameC, "USERNAME", Icons.person_rounded, hint: "e.g. admin"),
                 const SizedBox(height: 15),
@@ -192,7 +191,6 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
     );
   }
 
-  // --- 2. WORKSTATION DASHBOARD ---
   Widget _buildWorkstationDashboard(PharoahWebManager webPh) {
     double totalSalesAmt = 0;
     for (var s in webPh.sales) {
