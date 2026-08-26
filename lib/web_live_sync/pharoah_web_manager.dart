@@ -23,7 +23,6 @@ class PharoahWebManager with ChangeNotifier {
     scopes: ['email', 'profile', 'https://www.googleapis.com/auth/drive.file'],
   );
 
-  // Web par Real Google Popup Sign-In
   Future<void> signInWithGoogle() async {
     isLoading = true;
     errorMessage = "";
@@ -40,7 +39,6 @@ class PharoahWebManager with ChangeNotifier {
 
       userEmail = account.email;
       
-      // Google Drive se data pull karna
       final uri = Uri.parse("${DriveSyncService.defaultEndpoint}?action=PULL_DATA&email=$userEmail&t=${DateTime.now().millisecondsSinceEpoch}");
       final response = await http.get(uri);
 

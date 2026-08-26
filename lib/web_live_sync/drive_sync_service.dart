@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../pharoah_manager.dart';
 
 class DriveSyncService {
-  static const String defaultEndpoint = "https://script.google.com/macros/s/AKfycbyKFFt9WK-xB1qLRTD7M-b4jSlpCBoBfJ18x8FUP1wFBzbQ-dQgyjm1qPfvl2kQmaSl/exec";
+  static const String defaultEndpoint = "https://script.google.com/macros/s/AKfycbyKFFt9WK-xB1qLRTD7M-b4jSlpCBoBfJ18x8FUP1wFBzbQ-dQgyjm1qPfv12kQmaSl/exec";
 
   static Future<bool> pushDataToCloud(PharoahManager ph) async {
     try {
@@ -23,7 +23,6 @@ class DriveSyncService {
       ];
 
       Map<String, String> filesPayload = {};
-
       for (var name in fileNames) {
         final f = File('$workingDir/$name');
         if (await f.exists()) {

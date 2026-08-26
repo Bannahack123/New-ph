@@ -13,13 +13,11 @@ import 'web_live_sync/web_app_root.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 🌐 WEB BROWSER: 100% Dedicated Isolated Web App (No Mobile File Touch)
   if (kIsWeb) {
     runApp(const WebAppRoot());
     return;
   }
 
-  // 📱 MOBILE / APK: Original untouched PharoahManager
   runApp(
     ChangeNotifierProvider(
       create: (_) => PharoahManager(),
@@ -68,8 +66,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             cardTheme: const CardThemeData(
               elevation: 3,
               surfaceTintColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(15))),
-            ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
             appBarTheme: const AppBarTheme(
               centerTitle: false, 
               elevation: 0,

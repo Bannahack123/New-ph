@@ -25,7 +25,6 @@ class WebPortalGateway extends StatelessWidget {
       );
     }
 
-    // 1. SCENARIO A: NOT AUTHENTICATED -> SHOW GOOGLE SIGN IN LANDING PAGE
     if (!webPh.isAuthenticated) {
       return Scaffold(
         backgroundColor: const Color(0xFF0F172A),
@@ -77,7 +76,6 @@ class WebPortalGateway extends StatelessWidget {
                     const SizedBox(height: 20),
                   ],
 
-                  // SIGN IN WITH GOOGLE BUTTON
                   SizedBox(
                     width: double.infinity,
                     height: 52,
@@ -107,7 +105,6 @@ class WebPortalGateway extends StatelessWidget {
       );
     }
 
-    // 2. SCENARIO B: AUTHENTICATED -> SHOW WELCOME DASHBOARD
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
       appBar: AppBar(

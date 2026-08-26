@@ -22,7 +22,7 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Build Production Web App (HTML Renderer for iPad/Safari)
+      - name: Build Production Web App
         run: flutter build web --release --web-renderer html --base-href "/"
 
       - name: Upload Web Artifact
