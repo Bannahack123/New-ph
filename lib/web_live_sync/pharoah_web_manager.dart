@@ -1,14 +1,17 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'web_sync_engine.dart';
 
 class PharoahWebManager with ChangeNotifier {
   bool isLoading = false;
+  bool isAutoLoggingIn = true; // Auto-login check in progress
   bool isAuthenticated = false;
   String errorMessage = "";
   String successMessage = "";
 
+  // Store & Session Metadata
   String activeStoreToken = "";
   String activeUsername = "";
   String activePassword = "";
@@ -16,6 +19,7 @@ class PharoahWebManager with ChangeNotifier {
   String financialYear = "2026-27";
   Map<String, dynamic> companyProfile = {};
 
+  // Live Business Records
   List<dynamic> sales = [];
   List<dynamic> medicines = [];
   List<dynamic> parties = [];
@@ -26,6 +30,57 @@ class PharoahWebManager with ChangeNotifier {
   List<dynamic> saleReturns = [];
   List<dynamic> purchaseReturns = [];
 
+  PharoahWebManager() {
+    tryAutoLogin();
+  }
+
+  /// 1. Silent Auto-Login on Page Reload / Re-open
+  Future<bool> tryAutoLogin() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      bool wasLoggedIn = prefs.getBool('web_auth_logged_in') ?? false;
+      String? savedToken = prefs.getString('web_auth_store_token');
+      String? savedUser = prefs.getString('web_auth_username');
+      String? savedPass = prefs.getString('web_auth_password');
+
+      if (wasLoggedIn && savedToken != null && savedUser != null && savedPass != null) {
+        isLoading = true;
+        notifyListeners();
+
+        final result = await WebSyncEngine.fetchStoreData(
+          storeToken: savedToken,
+          username: savedUser,
+          password: savedPass,
+        );
+
+        if (result['success'] == true) {
+          activeStoreToken = savedToken.trim().toUpperCase();
+          activeUsername = savedUser.trim();
+          activePassword = savedPass.trim();
+          companyName = result['companyName'] ?? 'STORE WORKSTATION';
+          financialYear = result['fy'] ?? '2026-27';
+          companyProfile = result['profile'] ?? {};
+
+          final Map<String, dynamic> files = result['files'] ?? {};
+          _parseDownloadedFiles(files);
+
+          isAuthenticated = true;
+          isLoading = false;
+          isAutoLoggingIn = false;
+          notifyListeners();
+          return true;
+        }
+      }
+    } catch (e) {
+      debugPrint("Auto-login Error: $e");
+    }
+    isAutoLoggingIn = false;
+    isLoading = false;
+    notifyListeners();
+    return false;
+  }
+
+  /// 2. Login and Persist Credentials in LocalStorage
   Future<bool> loginWithStoreKey({
     required String storeToken,
     required String username,
@@ -53,9 +108,16 @@ class PharoahWebManager with ChangeNotifier {
       final Map<String, dynamic> files = result['files'] ?? {};
       _parseDownloadedFiles(files);
 
+      // Save persistent session in browser localStorage
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('web_auth_logged_in', true);
+      await prefs.setString('web_auth_store_token', activeStoreToken);
+      await prefs.setString('web_auth_username', activeUsername);
+      await prefs.setString('web_auth_password', activePassword);
+
       isAuthenticated = true;
       isLoading = false;
-      successMessage = "Store workstation connected successfully!";
+      successMessage = "Store connected successfully!";
       notifyListeners();
       return true;
     } else {
@@ -67,6 +129,7 @@ class PharoahWebManager with ChangeNotifier {
     }
   }
 
+  /// 3. Refresh Store Data Live
   Future<void> refreshStoreData() async {
     if (!isAuthenticated || activeStoreToken.isEmpty) return;
     isLoading = true;
@@ -113,7 +176,12 @@ class PharoahWebManager with ChangeNotifier {
     purchaseReturns = decodeJson('p_return.json') as List? ?? [];
   }
 
-  void signOut() {
+  /// 4. Explicit Sign Out (Clears Persistent Session)
+  Future<void> signOut() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('web_auth_logged_in', false);
+    await prefs.remove('web_auth_password'); // Clear password on explicit logout
+
     isAuthenticated = false;
     activeStoreToken = "";
     activeUsername = "";

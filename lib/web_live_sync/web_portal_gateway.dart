@@ -68,6 +68,32 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
   Widget build(BuildContext context) {
     final webPh = Provider.of<PharoahWebManager>(context);
 
+    // Auto-Logging in Splash on Page Reload
+    if (webPh.isAutoLoggingIn || webPh.isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF0F172A),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(color: Colors.cyanAccent),
+              SizedBox(height: 25),
+              Text(
+                "Connecting to Store Cloud Workstation...",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // State 1: Unauthenticated -> Show Login Form (with Auto-Remembered Key)
     if (!webPh.isAuthenticated) {
       return Scaffold(
         backgroundColor: const Color(0xFF0F172A),
@@ -83,8 +109,9 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
       );
     }
 
+    // State 2: Authenticated -> Master Assembly Shell
     return Scaffold(
-      backgroundColor: const Color(0xFF0B132B), // Deep Sapphire Canvas
+      backgroundColor: const Color(0xFF0B132B),
       appBar: WebTopBar(
         webPh: webPh,
         onSearchChanged: (v) => setState(() => searchQuery = v),
@@ -92,7 +119,6 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
       body: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Dynamic Recent Sidebar
           WebRecentSidebar(
             currentView: currentView,
             recentShortcuts: recentShortcuts,
@@ -101,23 +127,16 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
             onRemoveShortcut: _removeShortcut,
             onClearAll: _clearAllRecents,
           ),
-
-          // Main Workspace
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Breadcrumb Navigation
                   _buildBreadcrumbs(),
                   const SizedBox(height: 16),
-
-                  // Compact Live KPI Strip
                   WebKpiStrip(webPh: webPh),
                   const SizedBox(height: 20),
-
-                  // Compact Module Grid (Level 0 / Level 1 with Back button)
                   WebModuleGrid(
                     currentView: currentView,
                     onHubTap: _navigateToHub,
@@ -125,8 +144,6 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
                     onBackToHome: () => _navigateToHub("HOME", "MAIN BUSINESS MODULES"),
                   ),
                   const SizedBox(height: 25),
-
-                  // Live Invoices Feed (Home View)
                   if (currentView == "HOME")
                     WebInvoiceFeed(
                       webPh: webPh,

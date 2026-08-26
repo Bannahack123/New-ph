@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class WebLoginCard extends StatefulWidget {
   final String errorMessage;
@@ -21,6 +22,26 @@ class _WebLoginCardState extends State<WebLoginCard> {
   final usernameC = TextEditingController();
   final passwordC = TextEditingController();
   bool isObscured = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedCredentials();
+  }
+
+  Future<void> _loadSavedCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedToken = prefs.getString('web_auth_store_token');
+    final savedUser = prefs.getString('web_auth_username');
+    if (savedToken != null && savedToken.isNotEmpty) {
+      setState(() {
+        storeKeyC.text = savedToken;
+        if (savedUser != null && savedUser.isNotEmpty) {
+          usernameC.text = savedUser;
+        }
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -163,7 +184,7 @@ class _WebLoginCardState extends State<WebLoginCard> {
               ),
               const SizedBox(height: 20),
               const Text(
-                "Powered by Pharoah ERP • Zero-Cost Cloud Relay",
+                "Powered by Pharoah ERP • Persistent Session Engine",
                 style: TextStyle(color: Colors.white24, fontSize: 9),
               ),
             ],
