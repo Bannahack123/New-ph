@@ -1,90 +1,86 @@
-// ===========================================================================
-// 👑 PHAROAH ERP - TERMINAL CLOUD BRIDGE (AUTO-SYNC ENGINE)
-// ===========================================================================
-
-function doGet(e) {
-  try {
-    var action = (e && e.parameter && e.parameter.action) ? e.parameter.action : "PULL_DATA";
-    var rootFolder = getOrCreateFolder(DriveApp.getRootFolder(), "Pharoah_ERP_Cloud");
-
-    if (action === "PULL_DATA" || action === "CHECK_STATUS") {
-      var result = {};
-      var compFolders = rootFolder.getFolders();
-      
-      if (compFolders.hasNext()) {
-        var compFolder = compFolders.next();
-        var profileIter = compFolder.getFilesByName("profile.json");
-        if (profileIter.hasNext()) {
-          result["profile.json"] = profileIter.next().getBlob().getDataAsString();
-        }
-
-        var fyFolders = compFolder.getFolders();
-        var targetFolder = fyFolders.hasNext() ? fyFolders.next() : compFolder;
-        
-        var filesIter = targetFolder.getFiles();
-        while (filesIter.hasNext()) {
-          var file = filesIter.next();
-          result[file.getName()] = file.getBlob().getDataAsString();
-        }
-      }
-
-      return ContentService.createTextOutput(JSON.stringify({
-        status: "SUCCESS",
-        data: result,
-        hasData: Object.keys(result).length > 0,
-        companyName: result["profile.json"] ? JSON.parse(result["profile.json"]).name : "PHAROAH STORE",
-        timestamp: new Date().toISOString()
-      })).setMimeType(ContentService.MimeType.JSON);
-    }
-
-    return ContentService.createTextOutput(JSON.stringify({ status: "ONLINE" })).setMimeType(ContentService.MimeType.JSON);
-
-  } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({ status: "ERROR", message: err.toString() })).setMimeType(ContentService.MimeType.JSON);
-  }
-}
-
 function doPost(e) {
   try {
-    var data = JSON.parse(e.postData.contents);
-    var rootFolder = getOrCreateFolder(DriveApp.getRootFolder(), "Pharoah_ERP_Cloud");
-    var companyId = data.companyId || "DEFAULT_COMPANY";
-    var fy = data.fy || "2026-27";
+    var request = JSON.parse(e.postData.contents);
+    var action = request.action;
     
-    var compFolder = getOrCreateFolder(rootFolder, companyId);
-    var fyFolder = getOrCreateFolder(compFolder, fy);
+    // Dedicated Google Drive Folder
+    var folderName = "Pharoah_ERP_Cloud";
+    var folders = DriveApp.getFoldersByName(folderName);
+    var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
 
-    if (data.action === "PUSH_DATA") {
-      var files = data.files || {};
-      for (var fileName in files) {
-        saveOrUpdateFile(fyFolder, fileName, files[fileName]);
+    // =========================================================================
+    // 1. PUSH STORE DATA (Mobile App -> Cloud)
+    // =========================================================================
+    if (action === "PUSH_STORE_DATA") {
+      var storeToken = request.storeToken;
+      var fileName = storeToken + ".json";
+      
+      var files = folder.getFilesByName(fileName);
+      if (files.hasNext()) {
+        var existingFile = files.next();
+        existingFile.setContent(JSON.stringify(request));
+      } else {
+        folder.createFile(fileName, JSON.stringify(request), MimeType.PLAIN_TEXT);
       }
-      if (data.registryProfile) {
-        saveOrUpdateFile(compFolder, "profile.json", JSON.stringify(data.registryProfile));
-      }
-
+      
       return ContentService.createTextOutput(JSON.stringify({
         status: "SUCCESS",
-        message: "Synced to Google Drive"
+        message: "Store data saved on cloud relay."
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
-    return ContentService.createTextOutput(JSON.stringify({ status: "ERROR" })).setMimeType(ContentService.MimeType.JSON);
+    // =========================================================================
+    // 2. PULL STORE DATA (Cloud -> Web Portal Browser)
+    // =========================================================================
+    if (action === "PULL_STORE_DATA") {
+      var storeToken = request.storeToken;
+      var inputUser = request.username;
+      var inputPass = request.password;
+      var fileName = storeToken + ".json";
+      
+      var files = folder.getFilesByName(fileName);
+      if (!files.hasNext()) {
+        return ContentService.createTextOutput(JSON.stringify({
+          status: "ERROR",
+          message: "Store Access Key not found. Please sync from mobile app first."
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+
+      var storeData = JSON.parse(files.next().getBlob().getDataAsString());
+      
+      // Credential verification
+      if (storeData.adminUser.toLowerCase() === inputUser.toLowerCase() && storeData.adminPassword === inputPass) {
+        return ContentService.createTextOutput(JSON.stringify({
+          status: "SUCCESS",
+          companyName: storeData.companyName,
+          fy: storeData.fy,
+          registryProfile: storeData.registryProfile,
+          files: storeData.files
+        })).setMimeType(ContentService.MimeType.JSON);
+      } else {
+        return ContentService.createTextOutput(JSON.stringify({
+          status: "ERROR",
+          message: "Invalid Username or Password for this Store Key."
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({
+      status: "ERROR",
+      message: "Unknown Action."
+    })).setMimeType(ContentService.MimeType.JSON);
+
   } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({ status: "ERROR", message: err.toString() })).setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({
+      status: "ERROR",
+      message: err.toString()
+    })).setMimeType(ContentService.MimeType.JSON);
   }
 }
 
-function getOrCreateFolder(parent, name) {
-  var it = parent.getFoldersByName(name);
-  return it.hasNext() ? it.next() : parent.createFolder(name);
-}
-
-function saveOrUpdateFile(folder, name, content) {
-  var it = folder.getFilesByName(name);
-  if (it.hasNext()) {
-    it.next().setContent(typeof content === 'string' ? content : JSON.stringify(content));
-  } else {
-    folder.createFile(name, typeof content === 'string' ? content : JSON.stringify(content));
-  }
+function doGet(e) {
+  return ContentService.createTextOutput(JSON.stringify({
+    status: "ACTIVE",
+    service: "Pharoah ERP Cloud Relay Engine"
+  })).setMimeType(ContentService.MimeType.JSON);
 }

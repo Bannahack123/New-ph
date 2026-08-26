@@ -30,7 +30,7 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
 
     if (token.isEmpty || user.isEmpty || pass.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("All 3 fields (Store Key, User, Password) are required!"), backgroundColor: Colors.orange),
+        const SnackBar(content: Text("Store Key, Username & Password are required!"), backgroundColor: Colors.orange),
       );
       return;
     }
@@ -56,7 +56,7 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
               CircularProgressIndicator(color: Colors.cyanAccent),
               SizedBox(height: 25),
               Text(
-                "Connecting to Store Cloud Workstation...",
+                "Connecting to Store Workstation...",
                 style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 1),
               ),
             ],
@@ -104,7 +104,7 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
                 ),
                 const SizedBox(height: 6),
                 const Text(
-                  "Access your live store inventory, billing & ledger",
+                  "Enter Store Key & Credentials to login",
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.white54, fontSize: 11),
                 ),
@@ -129,7 +129,7 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
                   ),
                 ],
 
-                _buildField(storeKeyC, "STORE ACCESS KEY", Icons.vpn_key_rounded, hint: "e.g. PH-LIVE-9842-X7K2", isCaps: true),
+                _buildField(storeKeyC, "STORE ACCESS KEY", Icons.vpn_key_rounded, hint: "e.g. PH-LIVE-XXXX-XXXX", isCaps: true),
                 const SizedBox(height: 15),
                 _buildField(usernameC, "USERNAME", Icons.person_rounded, hint: "e.g. admin"),
                 const SizedBox(height: 15),
@@ -160,7 +160,7 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
                 ),
                 const SizedBox(height: 20),
                 const Text(
-                  "Powered by Pharoah ERP • Secure Cloud Relay Engine",
+                  "Powered by Pharoah ERP • Cloud Relay Engine",
                   style: TextStyle(color: Colors.white24, fontSize: 9),
                 ),
               ],
@@ -228,7 +228,6 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // KPI Metrics
             Row(
               children: [
                 Expanded(child: _kpiCard("TOTAL SALES", "₹${totalSalesAmt.toStringAsFixed(0)}", "${webPh.sales.length} Bills", Icons.trending_up_rounded, Colors.greenAccent)),
@@ -242,7 +241,6 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
             ),
             const SizedBox(height: 30),
 
-            // Live Sales Feed
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
