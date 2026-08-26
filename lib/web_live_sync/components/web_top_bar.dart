@@ -36,7 +36,7 @@ class WebTopBar extends StatelessWidget implements PreferredSizeWidget {
           ),
           const SizedBox(width: 12),
 
-          // Store Name & FY Badge (Store Key completely removed)
+          // Store Name & FY (Store Key completely removed)
           Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -86,7 +86,7 @@ class WebTopBar extends StatelessWidget implements PreferredSizeWidget {
           ),
           const SizedBox(width: 20),
 
-          // Live Cloud Connection Badge
+          // Live Cloud Status
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
@@ -112,7 +112,7 @@ class WebTopBar extends StatelessWidget implements PreferredSizeWidget {
           ),
           const SizedBox(width: 15),
 
-          // Live Refresh Button
+          // Refresh Button
           IconButton(
             icon: const Icon(Icons.sync_rounded, color: Colors.white70),
             tooltip: "Refresh Live Data",
@@ -145,7 +145,7 @@ class WebTopBar extends StatelessWidget implements PreferredSizeWidget {
         backgroundColor: const Color(0xFF1E293B),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white10),
+          side: const BorderSide(color: Colors.white10),
         ),
         title: const Text("Sign Out Workstation?", style: TextStyle(color: Colors.white)),
         content: const Text(
