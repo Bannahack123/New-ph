@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../pharoah_manager.dart';
-import '../web_live_sync/drive_sync_service.dart';
+import '../web_live_sync/weblivetoken.dart';
+import '../web_live_sync/web_cloud_config.dart';
+import '../web_live_sync/app_sync_engine.dart';
 
 class LiveWebView extends StatefulWidget {
   const LiveWebView({super.key});
@@ -15,113 +17,34 @@ class LiveWebView extends StatefulWidget {
 
 class _LiveWebViewState extends State<LiveWebView> {
   bool isLiveWebActive = false;
-  bool isGoogleConnected = false;
-  String googleEmail = "";
+  String storeToken = "";
   String lastSyncDisplay = "Never";
   bool isSyncing = false;
   bool isLoading = true;
 
-  final String webPortalUrl = "https://pharoah-erp.pages.dev";
-
   @override
   void initState() {
     super.initState();
-    _loadSavedState();
+    _loadState();
   }
 
-  Future<void> _loadSavedState() async {
+  Future<void> _loadState() async {
+    final ph = Provider.of<PharoahManager>(context, listen: false);
     final prefs = await SharedPreferences.getInstance();
-    String syncTime = await DriveSyncService.getLastSyncTime();
-    String savedEmail = prefs.getString('google_account_email') ?? "";
+    
+    String token = "";
+    if (ph.activeCompany != null) {
+      token = await WebLiveToken.getOrCreateToken(ph.activeCompany!.id);
+    }
+
+    String syncTime = await AppSyncEngine.getLastSyncFormattedTime();
 
     setState(() {
       isLiveWebActive = prefs.getBool('is_live_web_active') ?? false;
-      googleEmail = savedEmail;
-      isGoogleConnected = savedEmail.isNotEmpty;
+      storeToken = token;
       lastSyncDisplay = syncTime;
       isLoading = false;
     });
-  }
-
-  void _showAccountDialog(PharoahManager ph) {
-    final emailC = TextEditingController(text: googleEmail);
-    showDialog(
-      context: context,
-      builder: (c) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Colors.cyanAccent)),
-        title: const Row(
-          children: [
-            Icon(Icons.account_circle, color: Colors.cyanAccent, size: 28),
-            SizedBox(width: 10),
-            Text("Link Google Account", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Enter the Gmail ID linked to your Google Drive to sync your store database securely:",
-              style: TextStyle(color: Colors.white70, fontSize: 12),
-            ),
-            const SizedBox(height: 15),
-            TextField(
-              controller: emailC,
-              keyboardType: TextInputType.emailAddress,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-              decoration: InputDecoration(
-                labelText: "Your Gmail Address",
-                labelStyle: const TextStyle(color: Colors.white54),
-                hintText: "owner@gmail.com",
-                hintStyle: const TextStyle(color: Colors.white24),
-                prefixIcon: const Icon(Icons.email_outlined, color: Colors.cyanAccent),
-                filled: true,
-                fillColor: Colors.black26,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text("CANCEL", style: TextStyle(color: Colors.white54))),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent, foregroundColor: Colors.black),
-            onPressed: () async {
-              String mail = emailC.text.trim();
-              if (mail.isNotEmpty && mail.contains("@")) {
-                final prefs = await SharedPreferences.getInstance();
-                await prefs.setString('google_account_email', mail);
-                setState(() {
-                  googleEmail = mail;
-                  isGoogleConnected = true;
-                });
-                Navigator.pop(c);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text("✅ Linked to Google Account: $mail"), backgroundColor: Colors.green.shade800),
-                );
-                _runManualSync(ph);
-              }
-            },
-            child: const Text("LINK & CONNECT", style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _signOutGoogle() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('google_account_email');
-    setState(() {
-      googleEmail = "";
-      isGoogleConnected = false;
-    });
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Google Account Disconnected.")),
-      );
-    }
   }
 
   Future<void> _toggleLiveWeb(bool value, PharoahManager ph) async {
@@ -129,7 +52,7 @@ class _LiveWebViewState extends State<LiveWebView> {
     await prefs.setBool('is_live_web_active', value);
     setState(() => isLiveWebActive = value);
 
-    if (value && isGoogleConnected) {
+    if (value) {
       _runManualSync(ph);
     }
 
@@ -145,14 +68,9 @@ class _LiveWebViewState extends State<LiveWebView> {
   }
 
   Future<void> _runManualSync(PharoahManager ph) async {
-    if (!isGoogleConnected) {
-      _showAccountDialog(ph);
-      return;
-    }
-
     setState(() => isSyncing = true);
-    bool success = await DriveSyncService.pushDataToCloud(ph);
-    String syncTime = await DriveSyncService.getLastSyncTime();
+    bool success = await AppSyncEngine.pushStoreData(ph);
+    String syncTime = await AppSyncEngine.getLastSyncFormattedTime();
 
     if (mounted) {
       setState(() {
@@ -162,7 +80,7 @@ class _LiveWebViewState extends State<LiveWebView> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(success ? "✅ Data Synced to Google Drive successfully!" : "❌ Sync Failed. Check internet connection."),
+          content: Text(success ? "✅ Live Store Database Synced to Cloud!" : "❌ Sync Failed. Check internet connection."),
           backgroundColor: success ? Colors.green.shade800 : Colors.red.shade900,
         ),
       );
@@ -180,6 +98,49 @@ class _LiveWebViewState extends State<LiveWebView> {
     }
   }
 
+  void _confirmRegenerateToken(PharoahManager ph) {
+    showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Colors.orangeAccent)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.orangeAccent, size: 24),
+            SizedBox(width: 10),
+            Text("Regenerate Store Key?", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: const Text(
+          "Generating a new key will invalidate old web logins. You will need to enter the new key on the web workstation to reconnect.",
+          style: TextStyle(color: Colors.white70, fontSize: 12),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c), child: const Text("CANCEL", style: TextStyle(color: Colors.white54))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orangeAccent, foregroundColor: Colors.black),
+            onPressed: () async {
+              Navigator.pop(c);
+              if (ph.activeCompany != null) {
+                final newToken = await WebLiveToken.regenerateToken(ph.activeCompany!.id);
+                setState(() => storeToken = newToken);
+                if (isLiveWebActive) {
+                  _runManualSync(ph);
+                }
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("✅ New Store Access Key Generated!"), backgroundColor: Colors.green),
+                  );
+                }
+              }
+            },
+            child: const Text("REGENERATE", style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final ph = Provider.of<PharoahManager>(context);
@@ -187,7 +148,7 @@ class _LiveWebViewState extends State<LiveWebView> {
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
       appBar: AppBar(
-        title: const Text("Live Web & Google Drive Hub", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+        title: const Text("Live Web Workstation Hub", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
         backgroundColor: const Color(0xFF1E1B4B),
         foregroundColor: Colors.white,
         elevation: 0,
@@ -201,7 +162,7 @@ class _LiveWebViewState extends State<LiveWebView> {
                 children: [
                   _buildMasterSwitchCard(ph),
                   const SizedBox(height: 20),
-                  _buildGoogleAuthCard(ph),
+                  _buildCredentialsCard(ph),
                   const SizedBox(height: 20),
                   if (isLiveWebActive) ...[
                     _buildActiveBroadcastCard(ph),
@@ -241,10 +202,10 @@ class _LiveWebViewState extends State<LiveWebView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text("WEB LIVE BROADCASTER", style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                const Text("WEB LIVE WORKSTATION", style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
                 const SizedBox(height: 4),
                 Text(
-                  isLiveWebActive ? "Status: BROADCASTING ACTIVE" : "Status: 100% OFFLINE (Local)",
+                  isLiveWebActive ? "Status: LIVE & BROADCASTING" : "Status: 100% OFFLINE (Local)",
                   style: TextStyle(color: isLiveWebActive ? Colors.greenAccent : Colors.white38, fontSize: 10, fontWeight: FontWeight.bold),
                 ),
               ],
@@ -261,66 +222,89 @@ class _LiveWebViewState extends State<LiveWebView> {
     );
   }
 
-  Widget _buildGoogleAuthCard(PharoahManager ph) {
+  Widget _buildCredentialsCard(PharoahManager ph) {
+    final adminUser = ph.activeCompany?.adminUser ?? "admin";
+    final adminPass = ph.activeCompany?.password ?? "******";
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: isGoogleConnected ? Colors.greenAccent : Colors.orangeAccent, width: 1.2),
+        border: Border.all(color: Colors.cyanAccent.withOpacity(0.3), width: 1.2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.g_mobiledata_rounded, color: Colors.cyanAccent, size: 28),
+              const Icon(Icons.vpn_key_rounded, color: Colors.cyanAccent, size: 22),
               const SizedBox(width: 10),
-              const Text("GOOGLE DRIVE ACCOUNT", style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+              const Text("STORE ACCESS CREDENTIALS", style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 0.8)),
               const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: isGoogleConnected ? Colors.green.withOpacity(0.2) : Colors.orange.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(6),
+              IconButton(
+                icon: const Icon(Icons.refresh_rounded, color: Colors.orangeAccent, size: 18),
+                tooltip: "Regenerate Store Key",
+                onPressed: () => _confirmRegenerateToken(ph),
+              ),
+            ],
+          ),
+          const Divider(color: Colors.white10, height: 20),
+
+          const Text("1. PERMANENT STORE KEY (Unique Code):", style: TextStyle(color: Colors.white54, fontSize: 9, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(color: Colors.black38, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.cyanAccent.withOpacity(0.2))),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(storeToken.isEmpty ? "Generating..." : storeToken, style: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.w900, fontSize: 15, letterSpacing: 1.5)),
+                IconButton(
+                  icon: const Icon(Icons.copy_rounded, color: Colors.white70, size: 16),
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: storeToken));
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Store Key Copied!")));
+                  },
                 ),
-                child: Text(
-                  isGoogleConnected ? "SUCCESSFUL LINK" : "NOT LINKED",
-                  style: TextStyle(color: isGoogleConnected ? Colors.greenAccent : Colors.orangeAccent, fontSize: 9, fontWeight: FontWeight.bold),
+              ],
+            ),
+          ),
+          const SizedBox(height: 15),
+
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text("2. USERNAME:", style: TextStyle(color: Colors.white54, fontSize: 9, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(8)),
+                      child: Text(adminUser, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text("3. PASSWORD:", style: TextStyle(color: Colors.white54, fontSize: 9, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(8)),
+                      child: Text(adminPass, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          const Divider(color: Colors.white10, height: 25),
-
-          if (isGoogleConnected) ...[
-            const Text("Connected Account:", style: TextStyle(color: Colors.white54, fontSize: 11)),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(Icons.verified, color: Colors.greenAccent, size: 16),
-                const SizedBox(width: 8),
-                Expanded(child: Text(googleEmail, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13), overflow: TextOverflow.ellipsis)),
-                TextButton(onPressed: () => _showAccountDialog(ph), child: const Text("Change", style: TextStyle(color: Colors.cyanAccent, fontSize: 11))),
-                TextButton(onPressed: _signOutGoogle, child: const Text("Disconnect", style: TextStyle(color: Colors.redAccent, fontSize: 11))),
-              ],
-            ),
-            const SizedBox(height: 5),
-            const Text("📁 Target Folder: Google Drive > Pharoah_ERP_Cloud", style: TextStyle(color: Colors.cyanAccent, fontSize: 10)),
-          ] else ...[
-            const Text("Link your Google account to connect your store database with Google Drive.", style: TextStyle(color: Colors.white70, fontSize: 11, height: 1.4)),
-            const SizedBox(height: 15),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent, foregroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)), elevation: 0),
-                onPressed: () => _showAccountDialog(ph),
-                icon: const Icon(Icons.link_rounded, size: 20),
-                label: const Text("CONNECT GOOGLE ACCOUNT", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 0.5)),
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -351,7 +335,7 @@ class _LiveWebViewState extends State<LiveWebView> {
                 Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(6)), child: const Text("READY", style: TextStyle(color: Colors.greenAccent, fontSize: 9, fontWeight: FontWeight.bold))),
             ],
           ),
-          const Divider(color: Colors.white24, height: 25),
+          const Divider(color: Colors.white24, height: 20),
 
           Text("Company: ${ph.activeCompany?.name ?? 'N/A'}", style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
           Text("Financial Year: ${ph.currentFY}", style: const TextStyle(color: Colors.white70, fontSize: 11)),
@@ -364,8 +348,14 @@ class _LiveWebViewState extends State<LiveWebView> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(child: Text(webPortalUrl, style: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold, fontSize: 13), overflow: TextOverflow.ellipsis)),
-                IconButton(icon: const Icon(Icons.copy_rounded, color: Colors.white70, size: 18), onPressed: () { Clipboard.setData(ClipboardData(text: webPortalUrl)); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Web Link Copied!"))); }),
+                Expanded(child: Text(WebCloudConfig.webPortalUrl, style: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold, fontSize: 13), overflow: TextOverflow.ellipsis)),
+                IconButton(
+                  icon: const Icon(Icons.copy_rounded, color: Colors.white70, size: 18),
+                  onPressed: () {
+                    Clipboard.setData(const ClipboardData(text: WebCloudConfig.webPortalUrl));
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Web Portal Link Copied!")));
+                  },
+                ),
               ],
             ),
           ),
@@ -376,7 +366,7 @@ class _LiveWebViewState extends State<LiveWebView> {
             height: 48,
             child: ElevatedButton.icon(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent, foregroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 0),
-              onPressed: () => _openInBrowser(webPortalUrl),
+              onPressed: () => _openInBrowser(WebCloudConfig.webPortalUrl),
               icon: const Icon(Icons.open_in_browser_rounded, size: 20),
               label: const Text("OPEN IN CHROME / SAFARI", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 0.5)),
             ),
@@ -388,9 +378,9 @@ class _LiveWebViewState extends State<LiveWebView> {
             height: 42,
             child: OutlinedButton.icon(
               style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white38), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-              onPressed: (isSyncing || !isGoogleConnected) ? null : () => _runManualSync(ph),
+              onPressed: isSyncing ? null : () => _runManualSync(ph),
               icon: const Icon(Icons.sync_rounded, size: 18),
-              label: const Text("SYNC NOW TO GOOGLE DRIVE", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+              label: const Text("SYNC NOW TO CLOUD", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
             ),
           ),
         ],
@@ -408,11 +398,11 @@ class _LiveWebViewState extends State<LiveWebView> {
           Row(children: [
             Icon(Icons.security_rounded, color: Colors.cyanAccent, size: 18),
             SizedBox(width: 10),
-            Text("DATA PRIVACY & RULES", style: TextStyle(color: Colors.cyanAccent, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1)),
+            Text("STORE KEY PAIRING RULES", style: TextStyle(color: Colors.cyanAccent, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1)),
           ]),
           Divider(color: Colors.white10, height: 25),
           Text(
-            "• Switch OFF: App 100% offline rahegi, koi data cloud par nahi jayega.\n• Switch ON: Real-time sync with Google Drive.\n• Browser me open karne par aapki live dukan ka portal open hoga.",
+            "• Store Key (PH-LIVE-XXXX) aapki dukan ka permanent unique identifier hai jo data mix hone se rokta hai.\n• Website par jane ke baad sirf Store Key, User ID aur Password daal kar login karein.\n• Switch OFF: App 100% offline rahegi, koi data cloud par nahi jayega.",
             style: TextStyle(color: Colors.white70, fontSize: 11, height: 1.5),
           ),
         ],
