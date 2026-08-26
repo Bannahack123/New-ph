@@ -25,7 +25,7 @@ class WebPortalGateway extends StatelessWidget {
       );
     }
 
-    // 1. SCENARIO A: GOOGLE OAUTH LOGIN LANDING PAGE
+    // 1. SCENARIO A: GOOGLE OAUTH LOGIN LANDING PAGE ON WEB
     if (!webPh.isAuthenticated) {
       return Scaffold(
         backgroundColor: const Color(0xFF0F172A),
@@ -51,12 +51,12 @@ class WebPortalGateway extends StatelessWidget {
                   ),
                   const SizedBox(height: 25),
                   const Text(
-                    "PHAROAH ERP SECURE WEB",
+                    "PHAROAH ERP WEB PORTAL",
                     style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 1),
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    "Verified Google Authentication required to access cloud workstation",
+                    "Sign in with Google to securely access your cloud workstation",
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.white54, fontSize: 12, height: 1.4),
                   ),
@@ -77,7 +77,7 @@ class WebPortalGateway extends StatelessWidget {
                     const SizedBox(height: 20),
                   ],
 
-                  // OFFICIAL GOOGLE SIGN IN BUTTON
+                  // SIGN IN WITH GOOGLE BUTTON
                   SizedBox(
                     width: double.infinity,
                     height: 52,
@@ -89,13 +89,13 @@ class WebPortalGateway extends StatelessWidget {
                         elevation: 0,
                       ),
                       onPressed: () => webPh.signInWithGoogle(),
-                      icon: const Icon(Icons.g_mobiledata_rounded, size: 32, color: Colors.blue),
+                      icon: const Icon(Icons.login_rounded, size: 20, color: Colors.blueAccent),
                       label: const Text("SIGN IN WITH GOOGLE", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 0.5)),
                     ),
                   ),
                   const SizedBox(height: 20),
                   const Text(
-                    "Secured with Google OAuth 2.0 & Google Drive Sync",
+                    "Secured with Google OAuth 2.0 & Google Drive",
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.white38, fontSize: 10),
                   ),

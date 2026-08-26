@@ -23,7 +23,7 @@ class PharoahWebManager with ChangeNotifier {
     scopes: ['email', 'profile', 'https://www.googleapis.com/auth/drive.file'],
   );
 
-  // Real Google Sign-In Popup & Token Verification
+  // Web par Real Google Popup Sign-In
   Future<void> signInWithGoogle() async {
     isLoading = true;
     errorMessage = "";
@@ -40,7 +40,7 @@ class PharoahWebManager with ChangeNotifier {
 
       userEmail = account.email;
       
-      // Google Drive se data pull karne ki koshish
+      // Google Drive se data pull karna
       final uri = Uri.parse("${DriveSyncService.defaultEndpoint}?action=PULL_DATA&email=$userEmail&t=${DateTime.now().millisecondsSinceEpoch}");
       final response = await http.get(uri);
 
@@ -61,7 +61,7 @@ class PharoahWebManager with ChangeNotifier {
       isLoading = false;
       notifyListeners();
     } catch (e) {
-      debugPrint("Google Sign-In Error: $e");
+      debugPrint("Web Google Sign-In Error: $e");
       isLoading = false;
       errorMessage = "Google Authentication Failed: $e";
       notifyListeners();
