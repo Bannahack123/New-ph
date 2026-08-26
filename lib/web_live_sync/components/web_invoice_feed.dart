@@ -28,7 +28,6 @@ class WebInvoiceFeed extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           Row(
             children: [
               const Icon(Icons.receipt_long_rounded, color: Colors.cyanAccent, size: 20),
@@ -51,7 +50,6 @@ class WebInvoiceFeed extends StatelessWidget {
           ),
           const Divider(color: Colors.white10, height: 25),
 
-          // Table Content
           if (salesList.isEmpty)
             const Center(
               child: Padding(
@@ -102,7 +100,7 @@ class WebInvoiceFeed extends StatelessWidget {
 
                       return TableRow(
                         decoration: const BoxDecoration(
-                          border: Border(bottom: BorderSide(color: Colors.white05)),
+                          border: Border(bottom: BorderSide(color: Colors.white10)),
                         ),
                         children: [
                           _tdBadge(type),
