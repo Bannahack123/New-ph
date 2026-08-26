@@ -22,8 +22,9 @@ dependencies:
   http: ^1.2.0
   local_auth: ^2.3.0
   flutter_secure_storage: ^9.2.2
-  mailer: ^6.1.0  # <--- चेक करें कि यह line सिर्फ़ एक बार हो और dependencies के नीचे हो
+  mailer: ^6.1.0
   url_launcher: ^6.3.0
+  google_sign_in: ^6.2.2
 environment:
   sdk: '>=3.0.0 <4.0.0'
 dev_dependencies:
@@ -31,7 +32,6 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^3.0.0
 
-# यहाँ से नीचे सिर्फ़ एक बार 'flutter:' होना चाहिए
 flutter:
   uses-material-design: true
   assets:
