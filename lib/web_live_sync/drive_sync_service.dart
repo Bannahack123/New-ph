@@ -8,7 +8,6 @@ import '../pharoah_manager.dart';
 class DriveSyncService {
   static const String defaultEndpoint = "https://script.google.com/macros/s/AKfycbw1AG2cdsG4x7aQgVSB37FfUbC2LKE5-ve1bxap9friesBaD9Nd-t1AfXXLHtGaKa8E/exec";
 
-  // Google Drive par local files push karna
   static Future<bool> pushDataToCloud(PharoahManager ph) async {
     try {
       if (ph.activeCompany == null || ph.currentFY.isEmpty) return false;
@@ -58,7 +57,6 @@ class DriveSyncService {
     }
   }
 
-  // Last Sync Time nikalna
   static Future<String> getLastSyncTime() async {
     final prefs = await SharedPreferences.getInstance();
     String? timeStr = prefs.getString('last_cloud_sync_time');

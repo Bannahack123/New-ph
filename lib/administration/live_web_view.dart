@@ -45,15 +45,12 @@ class _LiveWebViewState extends State<LiveWebView> {
     });
   }
 
-  // 🌐 BROWSER-BASED GOOGLE LOGIN OAUTH FLOW
-  Future<void> _openBrowserLogin() async {
+  Future<void> _openBrowserLogin(PharoahManager ph) async {
     final Uri authUri = Uri.parse("${DriveSyncService.defaultEndpoint}?action=AUTH_PAGE");
     if (await canLaunchUrl(authUri)) {
       await launchUrl(authUri, mode: LaunchMode.externalApplication);
-      
-      // Prompt user to verify after login
       if (mounted) {
-        _showVerifyLoginDialog();
+        _showAutoFetchDialog(ph);
       }
     } else {
       if (mounted) {
@@ -64,53 +61,79 @@ class _LiveWebViewState extends State<LiveWebView> {
     }
   }
 
-  void _showVerifyLoginDialog() {
-    final emailC = TextEditingController();
+  void _showAutoFetchDialog(PharoahManager ph) {
     showDialog(
       context: context,
-      builder: (c) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text("Verify Google Login", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text("Enter the Gmail ID you used to login in the browser:", style: TextStyle(color: Colors.white70, fontSize: 12)),
-            const SizedBox(height: 15),
-            TextField(
-              controller: emailC,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                labelText: "Your Gmail ID",
-                labelStyle: const TextStyle(color: Colors.white54),
-                filled: true, fillColor: Colors.black26,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-              ),
+      barrierDismissible: false,
+      builder: (c) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          bool fetching = false;
+          String statusText = "Complete login in the browser, then tap below to fetch your verified Google ID.";
+
+          return AlertDialog(
+            backgroundColor: const Color(0xFF1E293B),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Colors.cyanAccent)),
+            title: const Row(
+              children: [
+                Icon(Icons.g_mobiledata_rounded, color: Colors.cyanAccent, size: 32),
+                SizedBox(width: 8),
+                Text("Google Verification", style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+              ],
             ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text("CANCEL")),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent, foregroundColor: Colors.black),
-            onPressed: () async {
-              String mail = emailC.text.trim();
-              if (mail.isNotEmpty && mail.contains("@")) {
-                final prefs = await SharedPreferences.getInstance();
-                await prefs.setString('google_account_email', mail);
-                setState(() {
-                  googleEmail = mail;
-                  isGoogleConnected = true;
-                });
-                Navigator.pop(c);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("✅ Successful Login Verified!"), backgroundColor: Colors.green),
-                );
-              }
-            },
-            child: const Text("VERIFY & CONFIRM", style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(statusText, style: const TextStyle(color: Colors.white70, fontSize: 11, height: 1.4)),
+                const SizedBox(height: 20),
+                if (fetching)
+                  const CircularProgressIndicator(color: Colors.cyanAccent),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(c), child: const Text("CANCEL", style: TextStyle(color: Colors.white54))),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent, foregroundColor: Colors.black),
+                onPressed: fetching ? null : () async {
+                  setDialogState(() => fetching = true);
+                  try {
+                    final uri = Uri.parse("${DriveSyncService.defaultEndpoint}?action=GET_SESSION&t=${DateTime.now().millisecondsSinceEpoch}");
+                    final response = await http.get(uri);
+
+                    if (response.statusCode == 200) {
+                      var res = jsonDecode(response.body);
+                      if (res['status'] == "SUCCESS" && res['email'] != null) {
+                        String fetchedEmail = res['email'];
+                        final prefs = await SharedPreferences.getInstance();
+                        await prefs.setString('google_account_email', fetchedEmail);
+                        
+                        setState(() {
+                          googleEmail = fetchedEmail;
+                          isGoogleConnected = true;
+                        });
+
+                        Navigator.pop(c);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text("✅ Authenticated via Google: $fetchedEmail"), backgroundColor: Colors.green),
+                        );
+                        return;
+                      }
+                    }
+                    setDialogState(() {
+                      fetching = false;
+                      statusText = "⚠️ Session not detected yet. Make sure you allowed access in the browser.";
+                    });
+                  } catch (e) {
+                    setDialogState(() {
+                      fetching = false;
+                      statusText = "Error: $e";
+                    });
+                  }
+                },
+                child: const Text("FETCH GOOGLE ID", style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -124,7 +147,7 @@ class _LiveWebViewState extends State<LiveWebView> {
     });
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Google Account Disconnected.")),
+        const SnackBar(content: Text("Google Account Disconnected. Status: Not Logged In")),
       );
     }
   }
@@ -151,9 +174,7 @@ class _LiveWebViewState extends State<LiveWebView> {
 
   Future<void> _runManualSync(PharoahManager ph) async {
     if (!isGoogleConnected) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please login with Google first!"), backgroundColor: Colors.orange),
-      );
+      _openBrowserLogin(ph);
       return;
     }
 
@@ -206,21 +227,14 @@ class _LiveWebViewState extends State<LiveWebView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 1. MASTER TOGGLE SWITCH
                   _buildMasterSwitchCard(ph),
                   const SizedBox(height: 20),
-
-                  // 2. GOOGLE AUTH & DRIVE LINKING CARD
                   _buildGoogleAuthCard(ph),
                   const SizedBox(height: 20),
-
-                  // 3. JAB SWITCH ON HO: WEB ACCESS POINT
                   if (isLiveWebActive) ...[
                     _buildActiveBroadcastCard(ph),
                     const SizedBox(height: 20),
                   ],
-
-                  // 4. SECURITY & RULES GUIDE
                   _buildSecurityGuideCard(),
                 ],
               ),
@@ -302,12 +316,12 @@ class _LiveWebViewState extends State<LiveWebView> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: isGoogleConnected ? Colors.green.withOpacity(0.2) : Colors.orange.withOpacity(0.2),
+                  color: isGoogleConnected ? Colors.green.withOpacity(0.2) : Colors.red.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   isGoogleConnected ? "SUCCESSFUL LOGIN" : "NOT LOGGED IN",
-                  style: TextStyle(color: isGoogleConnected ? Colors.greenAccent : Colors.orangeAccent, fontSize: 9, fontWeight: FontWeight.bold),
+                  style: TextStyle(color: isGoogleConnected ? Colors.greenAccent : Colors.redAccent, fontSize: 9, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
@@ -315,7 +329,7 @@ class _LiveWebViewState extends State<LiveWebView> {
           const Divider(color: Colors.white10, height: 25),
 
           if (isGoogleConnected) ...[
-            const Text("Verified Account Status:", style: TextStyle(color: Colors.white54, fontSize: 11)),
+            const Text("Verified Google Account:", style: TextStyle(color: Colors.white54, fontSize: 11)),
             const SizedBox(height: 4),
             Row(
               children: [
@@ -323,6 +337,10 @@ class _LiveWebViewState extends State<LiveWebView> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(googleEmail, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13), overflow: TextOverflow.ellipsis),
+                ),
+                TextButton(
+                  onPressed: () => _openBrowserLogin(ph),
+                  child: const Text("Re-login", style: TextStyle(color: Colors.cyanAccent, fontSize: 11)),
                 ),
                 TextButton(
                   onPressed: _signOutGoogle,
@@ -334,8 +352,8 @@ class _LiveWebViewState extends State<LiveWebView> {
             const Text("📁 Target Folder: Google Drive > Pharoah_ERP_Cloud", style: TextStyle(color: Colors.cyanAccent, fontSize: 10)),
           ] else ...[
             const Text(
-              "Authenticate securely with Google in browser to link your store database.",
-              style: TextStyle(color: Colors.white70, fontSize: 11, height: 1.4),
+              "Status: Not Logged In. Authenticate securely via browser to link your store with Google Drive.",
+              style: TextStyle(color: Colors.orangeAccent, fontSize: 11, height: 1.4, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 15),
             SizedBox(
@@ -343,14 +361,14 @@ class _LiveWebViewState extends State<LiveWebView> {
               height: 48,
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.black87,
+                  backgroundColor: Colors.cyanAccent,
+                  foregroundColor: Colors.black,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                   elevation: 0,
                 ),
-                onPressed: _openBrowserLogin,
-                icon: const Icon(Icons.open_in_browser_rounded, color: Colors.blueAccent, size: 20),
-                label: const Text("SIGN IN WITH GOOGLE (BROWSER)", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 0.5)),
+                onPressed: () => _openBrowserLogin(ph),
+                icon: const Icon(Icons.login_rounded, size: 20),
+                label: const Text("SIGN IN WITH GOOGLE", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 0.5)),
               ),
             ),
           ],
@@ -473,13 +491,13 @@ class _LiveWebViewState extends State<LiveWebView> {
             children: [
               Icon(Icons.security_rounded, color: Colors.cyanAccent, size: 18),
               SizedBox(width: 10),
-              Text("PRIVACY & SESSION STATUS", style: TextStyle(color: Colors.cyanAccent, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1)),
+              Text("AUTOMATIC EMAIL DETECTION", style: TextStyle(color: Colors.cyanAccent, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1)),
             ],
           ),
           Divider(color: Colors.white10, height: 25),
           Text(
-            "• Successful Login: Verified when your Google OAuth session binds to Google Drive.\n• Switch OFF: App is 100% offline and local.\n• Switch ON: Real-time encrypted sync with your personal Google Drive.",
-            style: TextStyle(color: Colors.white70, fontSize: 11, height: 1.5),
+            "• Browser Auth: App opens browser to verify Google login automatically.\n• Auto-Fetch: App fetches your authenticated Gmail ID from Google Drive without manual typing.\n• Re-login / Disconnect: Fully manageable anytime.",
+            style: TextStyle(color: Colors.white70, fontSize: 11, height: 1.4),
           ),
         ],
       ),
