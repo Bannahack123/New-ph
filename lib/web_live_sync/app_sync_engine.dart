@@ -15,21 +15,14 @@ class AppSyncEngine {
     'series.json', 'shortage.json', 'routs.json', 'comps.json'
   ];
 
-  /// 1. Push all store data to cloud relay using unique Store Token
   static Future<bool> pushStoreData(PharoahManager ph) async {
     try {
-      if (ph.activeCompany == null || ph.currentFY.isEmpty) {
-        debugPrint("AppSyncEngine: No active company or FY set.");
-        return false;
-      }
-
+      if (ph.activeCompany == null || ph.currentFY.isEmpty) return false;
       final workingDir = await ph.getWorkingPath();
       if (workingDir.isEmpty) return false;
 
-      // Fetch permanent unique store token
       final storeToken = await WebLiveToken.getOrCreateToken(ph.activeCompany!.id);
 
-      // Collect local JSON files
       Map<String, String> filesPayload = {};
       for (var name in _coreFiles) {
         final file = File('$workingDir/$name');
@@ -57,21 +50,18 @@ class AppSyncEngine {
         body: jsonEncode(payload),
       ).timeout(WebCloudConfig.networkTimeout);
 
-      if (response.statusCode == 200 || response.statusCode == 302) {
+      if (response.statusCode == 200 || response.statusCode == 302 || response.body.contains("SUCCESS")) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('last_cloud_sync_time', DateTime.now().toIso8601String());
         return true;
-      } else {
-        debugPrint("AppSyncEngine: Push failed with HTTP ${response.statusCode}");
-        return false;
       }
+      return false;
     } catch (e) {
-      debugPrint("AppSyncEngine Push Error: $e");
+      debugPrint("AppSyncEngine Error: $e");
       return false;
     }
   }
 
-  /// 2. Helper to display last sync timestamp on UI
   static Future<String> getLastSyncFormattedTime() async {
     final prefs = await SharedPreferences.getInstance();
     String? timeStr = prefs.getString('last_cloud_sync_time');

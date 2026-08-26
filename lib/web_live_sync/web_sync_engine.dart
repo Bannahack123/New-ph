@@ -4,7 +4,6 @@ import 'package:http/http.dart' as http;
 import 'web_cloud_config.dart';
 
 class WebSyncEngine {
-  /// 1. Fetch store data and verify credentials from Cloud Relay
   static Future<Map<String, dynamic>> fetchStoreData({
     required String storeToken,
     required String username,
@@ -15,18 +14,15 @@ class WebSyncEngine {
       final cleanUser = username.trim().toLowerCase();
       final cleanPass = password.trim();
 
-      final payload = {
-        "action": WebCloudConfig.actionPullStore,
-        "storeToken": cleanToken,
-        "username": cleanUser,
-        "password": cleanPass,
-      };
+      // Web Browser uses GET request to guarantee 100% CORS compliance on all browsers
+      final uri = Uri.parse(
+        "${WebCloudConfig.cloudRelayEndpoint}?action=PULL_STORE_DATA"
+        "&storeToken=${Uri.encodeComponent(cleanToken)}"
+        "&username=${Uri.encodeComponent(cleanUser)}"
+        "&password=${Uri.encodeComponent(cleanPass)}"
+      );
 
-      final response = await http.post(
-        Uri.parse(WebCloudConfig.cloudRelayEndpoint),
-        headers: WebCloudConfig.standardHeaders,
-        body: jsonEncode(payload),
-      ).timeout(WebCloudConfig.networkTimeout);
+      final response = await http.get(uri).timeout(WebCloudConfig.networkTimeout);
 
       if (response.statusCode == 200 || response.statusCode == 302) {
         final Map<String, dynamic> result = jsonDecode(response.body);
@@ -38,12 +34,12 @@ class WebSyncEngine {
             'profile': result['registryProfile'] ?? {},
             'files': result['files'] ?? {},
             'syncedAt': result['syncedAt'] ?? '',
-            'message': 'Store connected successfully!',
+            'message': 'Connected successfully!',
           };
         } else {
           return {
             'success': false,
-            'message': result['message'] ?? 'Invalid Store Key or Credentials.',
+            'message': result['message'] ?? 'Invalid Store Key or Password.',
           };
         }
       } else {
@@ -53,7 +49,7 @@ class WebSyncEngine {
         };
       }
     } catch (e) {
-      debugPrint("WebSyncEngine Fetch Error: $e");
+      debugPrint("WebSyncEngine Error: $e");
       return {
         'success': false,
         'message': 'Connection Error: Please check Store Key & internet.',
