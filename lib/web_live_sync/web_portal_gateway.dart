@@ -30,7 +30,10 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
 
     if (token.isEmpty || user.isEmpty || pass.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("All 3 fields are required!"), backgroundColor: Colors.orange),
+        const SnackBar(
+          content: Text("All 3 fields (Store Key, User, Password) are required!"),
+          backgroundColor: Colors.orange,
+        ),
       );
       return;
     }
@@ -56,8 +59,13 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
               CircularProgressIndicator(color: Colors.cyanAccent),
               SizedBox(height: 25),
               Text(
-                "Connecting to Store Workstation...",
-                style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 1),
+                "Connecting to Store Cloud Workstation...",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1,
+                ),
               ),
             ],
           ),
@@ -69,9 +77,12 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
       return _buildLoginView(webPh);
     }
 
-    return _buildWorkstationDashboard(webPh);
+    return _buildConnectedDashboard(webPh);
   }
 
+  // =========================================================================
+  // 1. CLEAN 3-FIELD LOGIN VIEW
+  // =========================================================================
   Widget _buildLoginView(PharoahWebManager webPh) {
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
@@ -85,21 +96,31 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
               color: const Color(0xFF1E293B),
               borderRadius: BorderRadius.circular(25),
               border: Border.all(color: Colors.cyanAccent.withOpacity(0.3), width: 1.5),
-              boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 25, offset: Offset(0, 10))],
+              boxShadow: const [
+                BoxShadow(color: Colors.black54, blurRadius: 25, offset: Offset(0, 10))
+              ],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
                   padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(color: Colors.cyanAccent.withOpacity(0.1), shape: BoxShape.circle),
+                  decoration: BoxDecoration(
+                    color: Colors.cyanAccent.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
                   child: const Icon(Icons.storefront_rounded, size: 50, color: Colors.cyanAccent),
                 ),
                 const SizedBox(height: 20),
                 const Text(
                   "PHAROAH WEB WORKSTATION",
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 1.2),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.2,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 const Text(
@@ -122,20 +143,30 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
                       children: [
                         const Icon(Icons.error_outline, color: Colors.redAccent, size: 18),
                         const SizedBox(width: 10),
-                        Expanded(child: Text(webPh.errorMessage, style: const TextStyle(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.bold))),
+                        Expanded(
+                          child: Text(
+                            webPh.errorMessage,
+                            style: const TextStyle(
+                              color: Colors.redAccent,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ],
 
-                _buildField(storeKeyC, "STORE ACCESS KEY", Icons.vpn_key_rounded, hint: "e.g. PH-LIVE-9842-X7K2", isCaps: true),
+                _buildField(storeKeyC, "STORE ACCESS KEY", Icons.vpn_key_rounded,
+                    hint: "e.g. PH-LIVE-9842-X7K2", isCaps: true),
                 const SizedBox(height: 15),
                 _buildField(usernameC, "USERNAME", Icons.person_rounded, hint: "e.g. admin"),
                 const SizedBox(height: 15),
                 _buildField(
-                  passwordC, 
-                  "PASSWORD", 
-                  Icons.lock_rounded, 
+                  passwordC,
+                  "PASSWORD",
+                  Icons.lock_rounded,
                   isPass: true,
                   isObscured: isObscured,
                   onToggleObscure: () => setState(() => isObscured = !isObscured),
@@ -154,7 +185,10 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
                     ),
                     onPressed: () => _handleLogin(webPh),
                     icon: const Icon(Icons.login_rounded, size: 20),
-                    label: const Text("LOGIN TO WORKSTATION", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 0.8)),
+                    label: const Text(
+                      "LOGIN TO WORKSTATION",
+                      style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 0.8),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -170,7 +204,12 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
     );
   }
 
-  Widget _buildField(TextEditingController ctrl, String label, IconData icon, {bool isPass = false, bool isCaps = false, String hint = "", bool isObscured = false, VoidCallback? onToggleObscure}) {
+  Widget _buildField(TextEditingController ctrl, String label, IconData icon,
+      {bool isPass = false,
+      bool isCaps = false,
+      String hint = "",
+      bool isObscured = false,
+      VoidCallback? onToggleObscure}) {
     return TextField(
       controller: ctrl,
       obscureText: isPass ? isObscured : false,
@@ -182,7 +221,13 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
         hintText: hint,
         hintStyle: const TextStyle(color: Colors.white24, fontSize: 12),
         prefixIcon: Icon(icon, color: Colors.cyanAccent, size: 20),
-        suffixIcon: isPass ? IconButton(icon: Icon(isObscured ? Icons.visibility_off : Icons.visibility, color: Colors.white54, size: 18), onPressed: onToggleObscure) : null,
+        suffixIcon: isPass
+            ? IconButton(
+                icon: Icon(isObscured ? Icons.visibility_off : Icons.visibility,
+                    color: Colors.white54, size: 18),
+                onPressed: onToggleObscure,
+              )
+            : null,
         filled: true,
         fillColor: Colors.black26,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
@@ -191,7 +236,10 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
     );
   }
 
-  Widget _buildWorkstationDashboard(PharoahWebManager webPh) {
+  // =========================================================================
+  // 2. CONNECTED "WELCOME TO PHAROAH ERP" DASHBOARD
+  // =========================================================================
+  Widget _buildConnectedDashboard(PharoahWebManager webPh) {
     double totalSalesAmt = 0;
     for (var s in webPh.sales) {
       totalSalesAmt += (s['totalAmount'] as num? ?? 0).toDouble();
@@ -201,11 +249,23 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
       backgroundColor: const Color(0xFF0F172A),
       appBar: AppBar(
         backgroundColor: const Color(0xFF1E1B4B),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        title: Row(
           children: [
-            Text(webPh.companyName.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: Colors.white)),
-            Text("Store Key: ${webPh.activeStoreToken} • FY: ${webPh.financialYear}", style: const TextStyle(fontSize: 10, color: Colors.cyanAccent)),
+            const Icon(Icons.storefront_rounded, color: Colors.cyanAccent, size: 22),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  webPh.companyName.toUpperCase(),
+                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: Colors.white),
+                ),
+                Text(
+                  "Key: ${webPh.activeStoreToken} • FY: ${webPh.financialYear}",
+                  style: const TextStyle(fontSize: 10, color: Colors.cyanAccent),
+                ),
+              ],
+            ),
           ],
         ),
         actions: [
@@ -224,97 +284,213 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(25),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Row(
-              children: [
-                Expanded(child: _kpiCard("TOTAL SALES", "₹${totalSalesAmt.toStringAsFixed(0)}", "${webPh.sales.length} Bills", Icons.trending_up_rounded, Colors.greenAccent)),
-                const SizedBox(width: 15),
-                Expanded(child: _kpiCard("MEDICINES", "${webPh.medicines.length}", "Master Catalog", Icons.medication_rounded, Colors.cyanAccent)),
-                const SizedBox(width: 15),
-                Expanded(child: _kpiCard("PARTIES", "${webPh.parties.length}", "Ledgers", Icons.people_alt_rounded, Colors.orangeAccent)),
-                const SizedBox(width: 15),
-                Expanded(child: _kpiCard("PURCHASES", "${webPh.purchases.length}", "Inward Bills", Icons.shopping_bag_rounded, Colors.purpleAccent)),
+            // --- PROMINENT WELCOME HERO CARD ---
+            Center(
+              child: Container(
+                width: double.infinity,
+                constraints: const BoxConstraints(maxWidth: 800),
+                padding: const EdgeInsets.all(30),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF1E1B4B), Color(0xFF1E293B)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: Colors.cyanAccent.withOpacity(0.35), width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.cyanAccent.withOpacity(0.08),
+                      blurRadius: 25,
+                      offset: const Offset(0, 8),
+                    )
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.cyanAccent.withOpacity(0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.verified_rounded, size: 50, color: Colors.cyanAccent),
+                    ),
+                    const SizedBox(height: 18),
+                    const Text(
+                      "Welcome to Pharoah ERP",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      "Your Cloud Workstation is Connected & Live with ${webPh.companyName.toUpperCase()}",
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 25),
+
+            // --- LIVE KPI METRICS (4 CARDS) ---
+            Center(
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 800),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _kpiCard("TOTAL SALES", "₹${totalSalesAmt.toStringAsFixed(0)}",
+                          "${webPh.sales.length} Bills", Icons.trending_up_rounded, Colors.greenAccent),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _kpiCard("MEDICINES", "${webPh.medicines.length}", "Catalog Items",
+                          Icons.medication_rounded, Colors.cyanAccent),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _kpiCard("PARTIES", "${webPh.parties.length}", "Ledgers",
+                          Icons.people_alt_rounded, Colors.orangeAccent),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _kpiCard("PURCHASES", "${webPh.purchases.length}", "Inward Records",
+                          Icons.shopping_bag_rounded, Colors.purpleAccent),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 25),
+
+            // --- LIVE RECENT INVOICES FEED ---
+            Center(
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 800),
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E293B),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white10),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                          children: [
+                            const Icon(Icons.receipt_long_rounded, color: Colors.cyanAccent, size: 20),
+                            const SizedBox(width: 10),
+                            const Text(
+                              "LIVE STORE INVOICE FEED",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            const Spacer(),
+                            Text("${webPh.sales.length} Total Bills",
+                                style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                          ],
+                        ),
+                        const Divider(color: Colors.white10, height: 25),
+
+                        if (webPh.sales.isEmpty)
+                          const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(30),
+                              child: Text(
+                                "No sales records found in this store database yet.",
+                                style: TextStyle(color: Colors.white38, fontSize: 12),
+                              ),
+                            ),
+                          )
+                        else
+                          ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: webPh.sales.length > 10 ? 10 : webPh.sales.length,
+                            itemBuilder: (c, i) {
+                              final s = webPh.sales.reversed.toList()[i];
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.black26,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: ListTile(
+                                  dense: true,
+                                  leading: const CircleAvatar(
+                                    radius: 14,
+                                    backgroundColor: Colors.green,
+                                    child: Text("S",
+                                        style: TextStyle(
+                                            fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold)),
+                                  ),
+                                  title: Text(
+                                    s['partyName'] ?? 'CASH',
+                                    style: const TextStyle(
+                                        color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                                  ),
+                                  subtitle: Text(
+                                    "Bill #${s['billNo'] ?? 'N/A'} • ${s['date'] != null ? s['date'].toString().substring(0, 10) : ''}",
+                                    style: const TextStyle(color: Colors.white54, fontSize: 10),
+                                  ),
+                                  trailing: Text(
+                                    "₹${(s['totalAmount'] as num? ?? 0).toStringAsFixed(2)}",
+                                    style: const TextStyle(
+                                        color: Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 13),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 30),
+          ),
+        );
+      }
 
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E293B),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white10),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      Widget _kpiCard(String title, String value, String sub, IconData icon, Color color) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E293B),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withOpacity(0.25)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.receipt_long_rounded, color: Colors.cyanAccent, size: 20),
-                      const SizedBox(width: 10),
-                      const Text("RECENT INVOICES (LIVE CLOUD FEED)", style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-                      const Spacer(),
-                      Text("${webPh.sales.length} Records", style: const TextStyle(color: Colors.white54, fontSize: 11)),
-                    ],
-                  ),
-                  const Divider(color: Colors.white10, height: 25),
-
-                  if (webPh.sales.isEmpty)
-                    const Center(child: Padding(padding: EdgeInsets.all(30), child: Text("No sales records found in this store.", style: TextStyle(color: Colors.white38, fontSize: 12))))
-                  else
-                    ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: webPh.sales.length > 15 ? 15 : webPh.sales.length,
-                      itemBuilder: (c, i) {
-                        final s = webPh.sales.reversed.toList()[i];
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(10)),
-                          child: ListTile(
-                            dense: true,
-                            leading: const CircleAvatar(radius: 14, backgroundColor: Colors.green, child: Text("S", style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold))),
-                            title: Text(s['partyName'] ?? 'CASH', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-                            subtitle: Text("Inv #${s['billNo'] ?? 'N/A'} • ${s['date'] != null ? s['date'].toString().substring(0, 10) : ''}", style: const TextStyle(color: Colors.white54, fontSize: 10)),
-                            trailing: Text("₹${(s['totalAmount'] as num? ?? 0).toStringAsFixed(2)}", style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 13)),
-                          ),
-                        );
-                      },
-                    ),
+                  Text(title,
+                      style: const TextStyle(
+                          color: Colors.white54, fontSize: 8.5, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                  Icon(icon, color: color, size: 18),
                 ],
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _kpiCard(String title, String value, String sub, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(title, style: const TextStyle(color: Colors.white54, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-              Icon(icon, color: color, size: 20),
+              const SizedBox(height: 8),
+              Text(value, style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 3),
+              Text(sub, style: const TextStyle(color: Colors.white38, fontSize: 8.5)),
             ],
           ),
-          const SizedBox(height: 10),
-          Text(value, style: TextStyle(color: color, fontSize: 20, fontWeight: FontWeight.w900)),
-          const SizedBox(height: 4),
-          Text(sub, style: const TextStyle(color: Colors.white38, fontSize: 9)),
-        ],
-      ),
-    );
-  }
-}
+        );
+      }
+    }
