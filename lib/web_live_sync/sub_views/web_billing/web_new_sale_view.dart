@@ -526,7 +526,7 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
                       String qtyDisp = "${(it['qty'] as num).toInt()}${it['freeQty'] > 0 ? ' + ${it['freeQty'].toInt()}' : ''}";
 
                       return TableRow(
-                        decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Colors.white05))),
+                        decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Colors.white10))),
                         children: [
                           _td("${idx + 1}"),
                           _td(it['name'].toString(), isLeft: true, isBold: true),
