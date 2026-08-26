@@ -1,3 +1,10 @@
+function testSetup() {
+  var folderName = "Pharoah_ERP_Cloud";
+  var folders = DriveApp.getFoldersByName(folderName);
+  var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
+  Logger.log("✅ Google Drive Permission Authorized Successfully!");
+}
+
 function doPost(e) {
   try {
     if (!e || !e.postData || !e.postData.contents) {
@@ -77,6 +84,44 @@ function doPost(e) {
 }
 
 function doGet(e) {
+  // Handle PULL_STORE_DATA via GET for web browser CORS bypass
+  if (e && e.parameter && e.parameter.action === "PULL_STORE_DATA") {
+    try {
+      var storeToken = e.parameter.storeToken;
+      var inputUser = (e.parameter.username || "").trim().toLowerCase();
+      var inputPass = (e.parameter.password || "").trim();
+      
+      var folderName = "Pharoah_ERP_Cloud";
+      var folders = DriveApp.getFoldersByName(folderName);
+      if (!folders.hasNext()) {
+        return createJsonResponse({ status: "ERROR", message: "Store folder not found." });
+      }
+      var folder = folders.next();
+      var files = folder.getFilesByName(storeToken + ".json");
+      if (!files.hasNext()) {
+        return createJsonResponse({ status: "ERROR", message: "Store Key not found." });
+      }
+      
+      var storeData = JSON.parse(files.next().getBlob().getDataAsString());
+      var savedUser = (storeData.adminUser || "").trim().toLowerCase();
+      var savedPass = (storeData.adminPassword || "").trim();
+      
+      if (savedUser === inputUser && savedPass === inputPass) {
+        return createJsonResponse({
+          status: "SUCCESS",
+          companyName: storeData.companyName,
+          fy: storeData.fy,
+          registryProfile: storeData.registryProfile,
+          files: storeData.files
+        });
+      } else {
+        return createJsonResponse({ status: "ERROR", message: "Invalid Password." });
+      }
+    } catch (err) {
+      return createJsonResponse({ status: "ERROR", message: err.toString() });
+    }
+  }
+
   return createJsonResponse({
     status: "ACTIVE",
     service: "Pharoah ERP Cloud Relay Engine",
