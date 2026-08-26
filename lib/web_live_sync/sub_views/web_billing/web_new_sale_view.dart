@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import '../../pharoah_web_manager.dart';
 import '../../web_cloud_config.dart';
 import 'package:http/http.dart' as http;
@@ -16,18 +15,14 @@ class WebNewSaleView extends StatefulWidget {
 }
 
 class _WebNewSaleViewState extends State<WebNewSaleView> {
-  // Bill Header Controllers
   final billNoC = TextEditingController();
   final extraDiscC = TextEditingController(text: "0");
   DateTime billDate = DateTime.now();
   String paymentMode = "CASH";
   
-  // Selected Customer / Party
   Map<String, dynamic>? selectedParty;
-  String partySearchQuery = "";
-
-  // Active Item Input Controllers
   Map<String, dynamic>? selectedMed;
+
   final batchC = TextEditingController();
   final expC = TextEditingController(text: "12/26");
   final mrpC = TextEditingController(text: "0.0");
@@ -38,19 +33,13 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
   final discPerC = TextEditingController(text: "0.0");
   String rateType = "A";
 
-  // Cart / Items in Current Bill
   List<Map<String, dynamic>> billItems = [];
   bool isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    _initBillHeader();
-  }
-
-  void _initBillHeader() {
     final webPh = Provider.of<PharoahWebManager>(context, listen: false);
-    // Generate sequential bill number
     int nextNum = webPh.sales.length + 101;
     billNoC.text = "INV-$nextNum";
   }
@@ -70,7 +59,6 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
     super.dispose();
   }
 
-  // --- ITEM CALCULATIONS ---
   void _onProductSelected(Map<String, dynamic> med) {
     setState(() {
       selectedMed = med;
@@ -95,7 +83,7 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
         double mrp = (selectedMed!['mrp'] as num? ?? 0).toDouble();
         double gst = (selectedMed!['gst'] as num? ?? 12).toDouble();
         double baseTaxable = mrp / (1 + (gst / 100));
-        rateC.text = (baseTaxable * 0.92).toStringAsFixed(2); // Rate C default 8% discount
+        rateC.text = (baseTaxable * 0.92).toStringAsFixed(2);
       }
     });
   }
@@ -119,7 +107,6 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
     double taxAmt = taxable * (gPer / 100);
     double total = taxable + taxAmt;
 
-    // Check tax split (Local vs Interstate)
     final webPh = Provider.of<PharoahWebManager>(context, listen: false);
     String shopState = (webPh.companyProfile['state'] ?? 'Rajasthan').toString().toLowerCase();
     String partyState = (selectedParty != null ? selectedParty!['state'] ?? 'Rajasthan' : 'Rajasthan').toString().toLowerCase();
@@ -129,11 +116,11 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
       billItems.add({
         'srNo': billItems.length + 1,
         'medicineID': selectedMed!['id'] ?? selectedMed!['systemId'] ?? 'temp',
-        'name': selectedMed!['name'] ?? 'UNKNOWN',
-        'packing': selectedMed!['packing'] ?? 'N/A',
+        'name': (selectedMed!['name'] ?? 'UNKNOWN').toString(),
+        'packing': (selectedMed!['packing'] ?? 'N/A').toString(),
         'batch': batchC.text.trim().toUpperCase(),
         'exp': expC.text.trim(),
-        'hsn': selectedMed!['hsnCode'] ?? '3004',
+        'hsn': (selectedMed!['hsnCode'] ?? '3004').toString(),
         'mrp': double.tryParse(mrpC.text) ?? 0.0,
         'qty': q,
         'freeQty': freeQ,
@@ -148,7 +135,6 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
         'total': total,
       });
 
-      // Reset item inputs
       selectedMed = null;
       qtyC.text = "1";
       freeC.text = "0";
@@ -156,7 +142,6 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
     });
   }
 
-  // --- TOTAL CALCULATIONS ---
   double get subTotal => billItems.fold(0.0, (sum, it) => sum + (it['total'] as num).toDouble());
   double get totalTaxable => billItems.fold(0.0, (sum, it) => sum + (it['taxable'] as num).toDouble());
   double get totalCGST => billItems.fold(0.0, (sum, it) => sum + (it['cgst'] as num).toDouble());
@@ -167,18 +152,17 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
   double get finalGrandTotal => rawGrandTotal.roundToDouble();
   double get roundOff => double.parse((finalGrandTotal - rawGrandTotal).toStringAsFixed(2));
 
-  // --- SAVE INVOICE TO WEB & CLOUD RELAY ---
   Future<void> _saveInvoice(PharoahWebManager webPh) async {
     if (billItems.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Cannot save empty bill! Add products.")));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Cannot save empty bill!")));
       return;
     }
 
     setState(() => isSaving = true);
 
-    String pName = selectedParty != null ? selectedParty!['name'] : "CASH";
-    String pGst = selectedParty != null ? (selectedParty!['gst'] ?? "N/A") : "N/A";
-    String pState = selectedParty != null ? (selectedParty!['state'] ?? "Rajasthan") : "Rajasthan";
+    String pName = selectedParty != null ? selectedParty!['name'].toString() : "CASH";
+    String pGst = selectedParty != null ? (selectedParty!['gst'] ?? "N/A").toString() : "N/A";
+    String pState = selectedParty != null ? (selectedParty!['state'] ?? "Rajasthan").toString() : "Rajasthan";
 
     final newSale = {
       'id': 'WEB-S-${DateTime.now().millisecondsSinceEpoch}',
@@ -197,20 +181,10 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
       'sourceTag': 'WEB-PORTAL',
     };
 
-    // 1. Update in Web Memory
-    webPh.sales.add(newSale);
+    // 1. Update in Web Memory via clean manager method
+    webPh.addSaleAndSync(newSale);
 
-    // 2. Decrement local stock in web memory
-    for (var it in billItems) {
-      int idx = webPh.medicines.indexWhere((m) => (m['id'] == it['medicineID'] || m['name'] == it['name']));
-      if (idx != -1) {
-        double curStock = (webPh.medicines[idx]['stock'] as num? ?? 0).toDouble();
-        double decr = (it['qty'] as num).toDouble() + (it['freeQty'] as num).toDouble();
-        webPh.medicines[idx]['stock'] = curStock - decr;
-      }
-    }
-
-    // 3. Push Updated Database to Cloud Relay
+    // 2. Push Updated Database to Cloud Relay
     try {
       final payload = {
         "action": WebCloudConfig.actionPushStore,
@@ -246,11 +220,10 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
     }
 
     setState(() => isSaving = false);
-    webPh.notifyListeners();
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("✅ Invoice ${billNoC.text} Saved & Synced Live to Cloud!"), backgroundColor: Colors.green),
+        SnackBar(content: Text("✅ Invoice ${billNoC.text} Saved & Synced!"), backgroundColor: Colors.green),
       );
       widget.onBack();
     }
@@ -263,15 +236,11 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // --- HEADER BAR ---
         _buildHeaderBar(webPh),
         const SizedBox(height: 18),
-
-        // --- MAIN TWO-COLUMN BILLING TERMINAL ---
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Left (70%): Product Entry & Items Data Table
             Expanded(
               flex: 7,
               child: Column(
@@ -283,8 +252,6 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
               ),
             ),
             const SizedBox(width: 18),
-
-            // Right (30%): Customer Box & Grand Total Summary
             Expanded(
               flex: 3,
               child: Column(
@@ -301,9 +268,6 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
     );
   }
 
-  // =========================================================================
-  // 1. TOP HEADER & CONTROLS
-  // =========================================================================
   Widget _buildHeaderBar(PharoahWebManager webPh) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
@@ -334,8 +298,6 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
             style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900, letterSpacing: 0.5),
           ),
           const Spacer(),
-
-          // Bill Number
           SizedBox(
             width: 130,
             height: 36,
@@ -353,8 +315,6 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
             ),
           ),
           const SizedBox(width: 12),
-
-          // Payment Mode Toggle
           SegmentedButton<String>(
             segments: const [
               ButtonSegment(value: 'CASH', label: Text('CASH', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
@@ -368,9 +328,6 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
     );
   }
 
-  // =========================================================================
-  // 2. PRODUCT ENTRY & QUICK RATE CARD
-  // =========================================================================
   Widget _buildProductInputCard(PharoahWebManager webPh) {
     return Container(
       padding: const EdgeInsets.all(18),
@@ -382,7 +339,6 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Row 1: Product Search Auto-complete
           Row(
             children: [
               Expanded(
@@ -416,19 +372,14 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
                 ),
               ),
               const SizedBox(width: 12),
-
-              // Batch & Expiry
               Expanded(flex: 2, child: _miniInput("BATCH", batchC)),
               const SizedBox(width: 10),
               Expanded(flex: 2, child: _miniInput("EXPIRY", expC)),
             ],
           ),
           const SizedBox(height: 12),
-
-          // Row 2: Rates, Qty, Free, Disc & Add Button
           Row(
             children: [
-              // Rate Level Buttons
               _ratePill("RATE A", rateType == "A", () => _applyRateLevel("A")),
               const SizedBox(width: 6),
               _ratePill("RATE B", rateType == "B", () => _applyRateLevel("B")),
@@ -449,7 +400,6 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
               Expanded(child: _miniInput("GST %", gstC, isNum: true)),
               const SizedBox(width: 14),
 
-              // Add Button
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF2563EB),
@@ -500,9 +450,6 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
     );
   }
 
-  // =========================================================================
-  // 3. BILL ITEMS DATA TABLE
-  // =========================================================================
   Widget _buildItemsDataTable() {
     return Container(
       padding: const EdgeInsets.all(18),
@@ -582,10 +529,10 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
                         decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Colors.white05))),
                         children: [
                           _td("${idx + 1}"),
-                          _td(it['name'], isLeft: true, isBold: true),
-                          _td(it['packing']),
-                          _td(it['batch']),
-                          _td(it['exp']),
+                          _td(it['name'].toString(), isLeft: true, isBold: true),
+                          _td(it['packing'].toString()),
+                          _td(it['batch'].toString()),
+                          _td(it['exp'].toString()),
                           _td(qtyDisp, isBold: true, color: Colors.cyanAccent),
                           _td("₹${(it['rate'] as num).toStringAsFixed(2)}"),
                           _td("${(it['gstRate'] as num).toInt()}%"),
@@ -616,9 +563,6 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
     child: Text(t, textAlign: isLeft ? TextAlign.left : TextAlign.center, style: TextStyle(color: color, fontSize: 11, fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
   );
 
-  // =========================================================================
-  // 4. CUSTOMER / PARTY SELECTION CARD
-  // =========================================================================
   Widget _buildCustomerCard(PharoahWebManager webPh) {
     return Container(
       padding: const EdgeInsets.all(18),
@@ -664,7 +608,7 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
             )
           else
             Autocomplete<Map<String, dynamic>>(
-              displayStringForOption: (option) => option['name'],
+              displayStringForOption: (option) => (option['name'] ?? '').toString(),
               optionsBuilder: (textEditingValue) {
                 if (textEditingValue.text.isEmpty) return const Iterable.empty();
                 return webPh.parties.where((p) =>
@@ -693,9 +637,6 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
     );
   }
 
-  // =========================================================================
-  // 5. GRAND TOTAL SUMMARY & SAVE TERMINAL
-  // =========================================================================
   Widget _buildGrandTotalSummaryCard(PharoahWebManager webPh) {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -748,7 +689,6 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
           _sumRow("Auto Round Off", "₹${roundOff.toStringAsFixed(2)}"),
           const Divider(color: Colors.white24, height: 25),
 
-          // Net Grand Total
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -761,7 +701,6 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
           ),
           const SizedBox(height: 25),
 
-          // Action Button
           SizedBox(
             width: double.infinity,
             height: 48,

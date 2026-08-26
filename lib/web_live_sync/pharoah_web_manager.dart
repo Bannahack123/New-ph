@@ -6,12 +6,11 @@ import 'web_sync_engine.dart';
 
 class PharoahWebManager with ChangeNotifier {
   bool isLoading = false;
-  bool isAutoLoggingIn = true; // Auto-login check in progress
+  bool isAutoLoggingIn = true;
   bool isAuthenticated = false;
   String errorMessage = "";
   String successMessage = "";
 
-  // Store & Session Metadata
   String activeStoreToken = "";
   String activeUsername = "";
   String activePassword = "";
@@ -19,7 +18,6 @@ class PharoahWebManager with ChangeNotifier {
   String financialYear = "2026-27";
   Map<String, dynamic> companyProfile = {};
 
-  // Live Business Records
   List<dynamic> sales = [];
   List<dynamic> medicines = [];
   List<dynamic> parties = [];
@@ -34,7 +32,6 @@ class PharoahWebManager with ChangeNotifier {
     tryAutoLogin();
   }
 
-  /// 1. Silent Auto-Login on Page Reload / Re-open
   Future<bool> tryAutoLogin() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -80,7 +77,6 @@ class PharoahWebManager with ChangeNotifier {
     return false;
   }
 
-  /// 2. Login and Persist Credentials in LocalStorage
   Future<bool> loginWithStoreKey({
     required String storeToken,
     required String username,
@@ -108,7 +104,6 @@ class PharoahWebManager with ChangeNotifier {
       final Map<String, dynamic> files = result['files'] ?? {};
       _parseDownloadedFiles(files);
 
-      // Save persistent session in browser localStorage
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('web_auth_logged_in', true);
       await prefs.setString('web_auth_store_token', activeStoreToken);
@@ -129,7 +124,22 @@ class PharoahWebManager with ChangeNotifier {
     }
   }
 
-  /// 3. Refresh Store Data Live
+  /// Add newly created sale and decrement stock in web memory
+  void addSaleAndSync(Map<String, dynamic> newSale) {
+    sales.add(newSale);
+    if (newSale['items'] != null && newSale['items'] is List) {
+      for (var it in (newSale['items'] as List)) {
+        int idx = medicines.indexWhere((m) => (m['id'] == it['medicineID'] || m['name'] == it['name']));
+        if (idx != -1) {
+          double curStock = (medicines[idx]['stock'] as num? ?? 0).toDouble();
+          double decr = (it['qty'] as num? ?? 0).toDouble() + (it['freeQty'] as num? ?? 0).toDouble();
+          medicines[idx]['stock'] = curStock - decr;
+        }
+      }
+    }
+    notifyListeners();
+  }
+
   Future<void> refreshStoreData() async {
     if (!isAuthenticated || activeStoreToken.isEmpty) return;
     isLoading = true;
@@ -176,11 +186,10 @@ class PharoahWebManager with ChangeNotifier {
     purchaseReturns = decodeJson('p_return.json') as List? ?? [];
   }
 
-  /// 4. Explicit Sign Out (Clears Persistent Session)
   Future<void> signOut() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('web_auth_logged_in', false);
-    await prefs.remove('web_auth_password'); // Clear password on explicit logout
+    await prefs.remove('web_auth_password');
 
     isAuthenticated = false;
     activeStoreToken = "";
