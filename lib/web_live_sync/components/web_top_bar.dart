@@ -12,31 +12,31 @@ class WebTopBar extends StatelessWidget implements PreferredSizeWidget {
   });
 
   @override
-  Size get preferredSize => const Size.fromHeight(65);
+  Size get preferredSize => const Size.fromHeight(60);
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 65,
+      height: 60,
       padding: const EdgeInsets.symmetric(horizontal: 20),
       decoration: const BoxDecoration(
-        color: Color(0xFF1E1B4B),
+        color: Color(0xFF0F172A), // Executive Deep Navy Black
         border: Border(bottom: BorderSide(color: Colors.white10)),
       ),
       child: Row(
         children: [
-          // Store Icon
+          // Store Icon Badge
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(
-              color: Colors.cyanAccent.withOpacity(0.15),
-              shape: BoxShape.circle,
+              color: const Color(0xFF2563EB).withOpacity(0.2),
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.storefront_rounded, color: Colors.cyanAccent, size: 22),
+            child: const Icon(Icons.storefront_rounded, color: Color(0xFF38BDF8), size: 20),
           ),
           const SizedBox(width: 12),
 
-          // Store Name & FY (Store Key completely removed)
+          // Store Name & FY
           Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -45,7 +45,7 @@ class WebTopBar extends StatelessWidget implements PreferredSizeWidget {
                 webPh.companyName.toUpperCase(),
                 style: const TextStyle(
                   fontWeight: FontWeight.w900,
-                  fontSize: 15,
+                  fontSize: 14,
                   color: Colors.white,
                   letterSpacing: 0.5,
                 ),
@@ -53,56 +53,57 @@ class WebTopBar extends StatelessWidget implements PreferredSizeWidget {
               Text(
                 "Financial Year: ${webPh.financialYear}",
                 style: const TextStyle(
-                  fontSize: 10,
-                  color: Colors.cyanAccent,
+                  fontSize: 9.5,
+                  color: Color(0xFF38BDF8),
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ],
           ),
-          const SizedBox(width: 30),
+          const SizedBox(width: 25),
 
           // Global Search Bar
           Expanded(
             child: Container(
-              height: 40,
-              constraints: const BoxConstraints(maxWidth: 450),
+              height: 36,
+              constraints: const BoxConstraints(maxWidth: 420),
               decoration: BoxDecoration(
-                color: Colors.black26,
-                borderRadius: BorderRadius.circular(12),
+                color: const Color(0xFF1E293B),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.white12),
               ),
               child: TextField(
                 onChanged: onSearchChanged,
-                style: const TextStyle(color: Colors.white, fontSize: 12),
+                style: const TextStyle(color: Colors.white, fontSize: 11.5),
                 decoration: const InputDecoration(
                   hintText: "Search Medicines, Customers, Invoices...",
                   hintStyle: TextStyle(color: Colors.white38, fontSize: 11),
-                  prefixIcon: Icon(Icons.search_rounded, color: Colors.cyanAccent, size: 18),
+                  prefixIcon: Icon(Icons.search_rounded, color: Color(0xFF38BDF8), size: 16),
                   border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(vertical: 10),
+                  contentPadding: EdgeInsets.symmetric(vertical: 9),
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 20),
+          const SizedBox(width: 16),
 
           // Live Cloud Status
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.green.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.greenAccent.withOpacity(0.4)),
+              color: Colors.green.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.greenAccent.withOpacity(0.3)),
             ),
             child: Row(
               children: const [
-                Icon(Icons.circle, color: Colors.greenAccent, size: 8),
+                Icon(Icons.circle, color: Colors.greenAccent, size: 7),
                 SizedBox(width: 6),
                 Text(
-                  "LIVE CLOUD ACTIVE",
+                  "LIVE CLOUD",
                   style: TextStyle(
                     color: Colors.greenAccent,
-                    fontSize: 9,
+                    fontSize: 8.5,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 0.5,
                   ),
@@ -110,17 +111,17 @@ class WebTopBar extends StatelessWidget implements PreferredSizeWidget {
               ],
             ),
           ),
-          const SizedBox(width: 15),
+          const SizedBox(width: 12),
 
           // Refresh Button
           IconButton(
-            icon: const Icon(Icons.sync_rounded, color: Colors.white70),
+            icon: const Icon(Icons.sync_rounded, color: Colors.white70, size: 20),
             tooltip: "Refresh Live Data",
             onPressed: () {
               webPh.refreshStoreData();
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text("🔄 Refreshing Store Live Cloud Database..."),
+                  content: Text("🔄 Live Cloud Database Refreshed!"),
                   duration: Duration(seconds: 1),
                 ),
               );
@@ -129,7 +130,7 @@ class WebTopBar extends StatelessWidget implements PreferredSizeWidget {
 
           // Logout Button
           IconButton(
-            icon: const Icon(Icons.logout_rounded, color: Colors.redAccent),
+            icon: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 20),
             tooltip: "Sign Out",
             onPressed: () => _confirmSignOut(context),
           ),
@@ -144,10 +145,10 @@ class WebTopBar extends StatelessWidget implements PreferredSizeWidget {
       builder: (c) => AlertDialog(
         backgroundColor: const Color(0xFF1E293B),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(18),
           side: const BorderSide(color: Colors.white10),
         ),
-        title: const Text("Sign Out Workstation?", style: TextStyle(color: Colors.white)),
+        title: const Text("Sign Out Workstation?", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
         content: const Text(
           "Are you sure you want to disconnect from this store workstation?",
           style: TextStyle(color: Colors.white70, fontSize: 12),
@@ -166,7 +167,7 @@ class WebTopBar extends StatelessWidget implements PreferredSizeWidget {
               Navigator.pop(c);
               webPh.signOut();
             },
-            child: const Text("SIGN OUT"),
+            child: const Text("SIGN OUT", style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),

@@ -20,7 +20,6 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
   String currentViewTitle = "MAIN BUSINESS MODULES";
   String searchQuery = "";
 
-  // Dynamic Recent Shortcuts List
   List<Map<String, dynamic>> recentShortcuts = [];
 
   void _navigateToHub(String hubId, String hubTitle) {
@@ -31,7 +30,6 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
   }
 
   void _handleActionTap(String actionTitle, IconData icon, String navKey) {
-    // Auto-add to Dynamic Recent Shortcuts
     if (!recentShortcuts.any((item) => item['title'] == actionTitle)) {
       setState(() {
         recentShortcuts.insert(0, {
@@ -70,7 +68,6 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
   Widget build(BuildContext context) {
     final webPh = Provider.of<PharoahWebManager>(context);
 
-    // State 1: Unauthenticated -> Show Isolated Login Form
     if (!webPh.isAuthenticated) {
       return Scaffold(
         backgroundColor: const Color(0xFF0F172A),
@@ -86,9 +83,8 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
       );
     }
 
-    // State 2: Authenticated -> Master Assembly Shell
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: const Color(0xFF0B132B), // Deep Sapphire Canvas
       appBar: WebTopBar(
         webPh: webPh,
         onSearchChanged: (v) => setState(() => searchQuery = v),
@@ -96,7 +92,7 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
       body: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. Dynamic Recent Shortcuts Sidebar
+          // Dynamic Recent Sidebar
           WebRecentSidebar(
             currentView: currentView,
             recentShortcuts: recentShortcuts,
@@ -106,36 +102,37 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
             onClearAll: _clearAllRecents,
           ),
 
-          // 2. Main Workspace
+          // Main Workspace
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Breadcrumbs & Back Navigation
+                  // Breadcrumb Navigation
                   _buildBreadcrumbs(),
+                  const SizedBox(height: 16),
+
+                  // Compact Live KPI Strip
+                  WebKpiStrip(webPh: webPh),
                   const SizedBox(height: 20),
 
-                  // 4-Card Live KPI Strip
-                  WebKpiStrip(webPh: webPh),
-                  const SizedBox(height: 25),
-
-                  // Level 0 / Level 1 Module Grid
+                  // Compact Module Grid (Level 0 / Level 1 with Back button)
                   WebModuleGrid(
                     currentView: currentView,
                     onHubTap: _navigateToHub,
                     onActionTap: _handleActionTap,
+                    onBackToHome: () => _navigateToHub("HOME", "MAIN BUSINESS MODULES"),
                   ),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 25),
 
-                  // Live Invoices Feed Table (Only on Home View)
+                  // Live Invoices Feed (Home View)
                   if (currentView == "HOME")
                     WebInvoiceFeed(
                       webPh: webPh,
                       onViewBill: (bill) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text("Viewing Bill: ${bill['billNo'] ?? ''}")),
+                          SnackBar(content: Text("Viewing Invoice: ${bill['billNo'] ?? ''}")),
                         );
                       },
                       onPrintBill: (bill) {
@@ -154,29 +151,45 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
   }
 
   Widget _buildBreadcrumbs() {
-    return Row(
-      children: [
-        InkWell(
-          onTap: () => _navigateToHub("HOME", "MAIN BUSINESS MODULES"),
-          child: const Text("Home",
-              style: TextStyle(color: Colors.cyanAccent, fontSize: 11, fontWeight: FontWeight.bold)),
-        ),
-        if (currentView != "HOME") ...[
-          const SizedBox(width: 6),
-          const Icon(Icons.chevron_right_rounded, color: Colors.white38, size: 16),
-          const SizedBox(width: 6),
-          Text(currentViewTitle,
-              style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
-        ],
-        const Spacer(),
-        if (currentView != "HOME")
-          TextButton.icon(
-            style: TextButton.styleFrom(foregroundColor: Colors.white70),
-            onPressed: () => _navigateToHub("HOME", "MAIN BUSINESS MODULES"),
-            icon: const Icon(Icons.arrow_back_rounded, size: 16),
-            label: const Text("Back to All Modules", style: TextStyle(fontSize: 11)),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E293B),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Row(
+        children: [
+          InkWell(
+            onTap: () => _navigateToHub("HOME", "MAIN BUSINESS MODULES"),
+            child: Row(
+              children: const [
+                Icon(Icons.home_rounded, color: Color(0xFF38BDF8), size: 15),
+                SizedBox(width: 6),
+                Text("Home", style: TextStyle(color: Color(0xFF38BDF8), fontSize: 11, fontWeight: FontWeight.bold)),
+              ],
+            ),
           ),
-      ],
+          if (currentView != "HOME") ...[
+            const SizedBox(width: 8),
+            const Icon(Icons.chevron_right_rounded, color: Colors.white38, size: 15),
+            const SizedBox(width: 8),
+            Text(currentViewTitle, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w900)),
+          ],
+          const Spacer(),
+          if (currentView != "HOME")
+            InkWell(
+              onTap: () => _navigateToHub("HOME", "MAIN BUSINESS MODULES"),
+              child: Row(
+                children: const [
+                  Icon(Icons.arrow_back_rounded, color: Colors.white54, size: 14),
+                  SizedBox(width: 4),
+                  Text("Back", style: TextStyle(color: Colors.white54, fontSize: 10.5, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
