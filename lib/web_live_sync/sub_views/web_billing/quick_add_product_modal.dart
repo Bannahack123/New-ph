@@ -84,8 +84,10 @@ class _QuickAddProductModalState extends State<QuickAddProductModal> {
     );
 
     widget.webPh.addMedicine(newMed);
-    widget.onProductCreated(newMed.toMap());
+    
+    // 🔑 FIXED: Pehle is modal ko pop karein, fir callback trigger karein
     Navigator.pop(context);
+    widget.onProductCreated(newMed.toMap());
   }
 
   @override

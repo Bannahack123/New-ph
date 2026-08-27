@@ -120,7 +120,7 @@ class _WebPurchaseEntryViewState extends State<WebPurchaseEntryView> {
                   children: [
                     Row(
                       children: [
-                        Expanded(flex: 3, child: _dialogInput("BATCH NO *", batchC, isCaps: true)),
+                        Expanded(flex: 3, child: _dialogInput("BATCH NO *", batchC, isCaps: false)),
                         const SizedBox(width: 10),
                         Expanded(flex: 2, child: _dialogInput("EXPIRY (MM/YY) *", expC, isNum: true)),
                       ],

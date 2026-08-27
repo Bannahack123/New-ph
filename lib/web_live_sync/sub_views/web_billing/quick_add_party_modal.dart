@@ -56,7 +56,6 @@ class _QuickAddPartyModalState extends State<QuickAddPartyModal> {
   @override
   void initState() {
     super.initState();
-    // Auto-extract PAN from GSTIN (Exact App Logic)
     gstC.addListener(() {
       if (gstC.text.length >= 12) {
         String extPan = gstC.text.substring(2, 12).toUpperCase();
@@ -113,8 +112,8 @@ class _QuickAddPartyModalState extends State<QuickAddPartyModal> {
     );
 
     widget.webPh.addParty(newParty);
-    widget.onPartyCreated(newParty);
     Navigator.pop(context);
+    widget.onPartyCreated(newParty);
   }
 
   @override
@@ -180,7 +179,7 @@ class _QuickAddPartyModalState extends State<QuickAddPartyModal> {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Expanded(child: _inputField("MOBILE NUMBER", phoneC, Icons.phone, isNum: true)),
+                  Expanded(child: _inputField("MOBILE NUMBER", phoneC, Icons.phone, isPhone: true)),
                   const SizedBox(width: 10),
                   Expanded(child: _inputField("EMAIL ID", emailC, Icons.email)),
                 ],
@@ -264,10 +263,10 @@ class _QuickAddPartyModalState extends State<QuickAddPartyModal> {
     );
   }
 
-  Widget _inputField(String label, TextEditingController ctrl, IconData icon, {bool isNum = false, bool isCaps = false}) {
+  Widget _inputField(String label, TextEditingController ctrl, IconData icon, {bool isNum = false, bool isPhone = false, bool isCaps = false}) {
     return TextField(
       controller: ctrl,
-      keyboardType: isNum ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text,
+      keyboardType: isPhone ? TextInputType.phone : (isNum ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text),
       textCapitalization: isCaps ? TextCapitalization.characters : TextCapitalization.none,
       style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
       decoration: InputDecoration(

@@ -102,7 +102,7 @@ class _WebChallanViewState extends State<WebChallanView> with SingleTickerProvid
                   children: [
                     Row(
                       children: [
-                        Expanded(flex: 3, child: _input("BATCH NO *", batchC, isCaps: true)),
+                        Expanded(flex: 3, child: _input("BATCH NO *", batchC, isCaps: false)),
                         const SizedBox(width: 10),
                         Expanded(flex: 2, child: _input("EXPIRY (MM/YY)", expC, isNum: true)),
                       ],
@@ -236,7 +236,7 @@ class _WebChallanViewState extends State<WebChallanView> with SingleTickerProvid
                   children: [
                     Row(
                       children: [
-                        Expanded(flex: 3, child: _input("BATCH NO *", batchC, isCaps: true)),
+                        Expanded(flex: 3, child: _input("BATCH NO *", batchC, isCaps: false)),
                         const SizedBox(width: 10),
                         Expanded(flex: 2, child: _input("EXPIRY (MM/YY)", expC, isNum: true)),
                       ],

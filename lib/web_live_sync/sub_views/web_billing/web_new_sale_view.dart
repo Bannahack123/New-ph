@@ -34,7 +34,7 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
   List<BillItem> billItems = [];
   bool isSaving = false;
 
-  static const String currentTestId = "#PH-REV-104";
+  static const String currentTestId = "#PH-REV-107";
 
   @override
   void initState() {

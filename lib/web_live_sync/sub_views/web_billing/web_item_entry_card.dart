@@ -429,7 +429,7 @@ class _WebItemEntryCardState extends State<WebItemEntryCard> {
                                     medicineID: widget.med.id,
                                     name: widget.med.name,
                                     packing: widget.med.packing,
-                                    batch: batchC.text.trim().toUpperCase(),
+                                    batch: batchC.text.trim(),
                                     exp: expC.text.trim(),
                                     hsn: widget.med.hsnCode,
                                     mrp: double.tryParse(mrpC.text) ?? 0.0,
