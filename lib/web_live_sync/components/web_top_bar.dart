@@ -29,9 +29,9 @@ class WebTopBar extends StatelessWidget implements PreferredSizeWidget {
         children: [
           Container(
             padding: const EdgeInsets.all(7),
-            decoration: BoxDecoration(
-              color: const Color(0x332563EB),
-              borderRadius: BorderRadius.circular(10),
+            decoration: const BoxDecoration(
+              color: Color(0x332563EB),
+              borderRadius: BorderRadius.all(Radius.circular(10)),
             ),
             child: const Icon(Icons.storefront_rounded, color: Color(0xFF38BDF8), size: 20),
           ),
@@ -49,21 +49,39 @@ class WebTopBar extends StatelessWidget implements PreferredSizeWidget {
                   letterSpacing: 0.5,
                 ),
               ),
-              Text(
-                "Financial Year: ${webPh.financialYear}",
-                style: const TextStyle(
-                  fontSize: 9.5,
-                  color: Color(0xFF38BDF8),
-                  fontWeight: FontWeight.bold,
-                ),
+              Row(
+                children: [
+                  Text(
+                    "FY: ${webPh.financialYear}",
+                    style: const TextStyle(
+                      fontSize: 9.5,
+                      color: Color(0xFF38BDF8),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // 🏷️ Live Test ID Tag on Top Bar
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: const Color(0x2610B981),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.greenAccent, width: 0.5),
+                    ),
+                    child: const Text(
+                      "#PH-REV-101",
+                      style: TextStyle(color: Colors.greenAccent, fontSize: 7.5, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(width: 25),
+          const SizedBox(width: 20),
           Expanded(
             child: Container(
               height: 36,
-              constraints: const BoxConstraints(maxWidth: 420),
+              constraints: const BoxConstraints(maxWidth: 380),
               decoration: BoxDecoration(
                 color: const Color(0xFF1E293B),
                 borderRadius: BorderRadius.circular(10),
@@ -82,7 +100,7 @@ class WebTopBar extends StatelessWidget implements PreferredSizeWidget {
               ),
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 14),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
@@ -106,7 +124,7 @@ class WebTopBar extends StatelessWidget implements PreferredSizeWidget {
               ],
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           IconButton(
             icon: const Icon(Icons.sync_rounded, color: Colors.white70, size: 20),
             tooltip: "Refresh Live Data",
@@ -123,14 +141,14 @@ class WebTopBar extends StatelessWidget implements PreferredSizeWidget {
           IconButton(
             icon: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 20),
             tooltip: "Sign Out",
-            onPressed: () => _confirmSignOut(context),
+            onPressed: () => _confirmSignOut(context, webPh),
           ),
         ],
       ),
     );
   }
 
-  void _confirmSignOut(BuildContext context) {
+  void _confirmSignOut(BuildContext context, PharoahWebManager webPh) {
     showDialog(
       context: context,
       builder: (c) => AlertDialog(

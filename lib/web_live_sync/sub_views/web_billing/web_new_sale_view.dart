@@ -28,6 +28,9 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
   List<BillItem> billItems = [];
   bool isSaving = false;
 
+  // 🏷️ Dynamic Verification Tag
+  static const String currentTestId = "#PH-REV-101";
+
   @override
   void initState() {
     super.initState();
@@ -165,19 +168,21 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        bool isWideScreen = constraints.maxWidth > 920;
+        // Breakpoint: > 1100px for 2-column Widescreen, <= 1100px for Full-Width Stacked iPad/Vertical
+        bool isWideScreen = constraints.maxWidth > 1100;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeaderBar(webPh),
-            const SizedBox(height: 18),
+            const SizedBox(height: 16),
             if (isWideScreen)
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Left 65% Workspace
                   Expanded(
-                    flex: 7,
+                    flex: 13,
                     child: Column(
                       children: [
                         _buildProductSearchCard(webPh),
@@ -187,8 +192,9 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
                     ),
                   ),
                   const SizedBox(width: 18),
-                  Expanded(
-                    flex: 3,
+                  // Right 35% Guaranteed Width Sidebar
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(minWidth: 340, maxWidth: 420),
                     child: Column(
                       children: [
                         _buildCustomerCard(webPh),
@@ -200,6 +206,7 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
                 ],
               )
             else
+              // Vertical / iPad Adaptive Stack
               Column(
                 children: [
                   _buildCustomerCard(webPh),
@@ -219,61 +226,206 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
 
   Widget _buildHeaderBar(PharoahWebManager webPh) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.white12),
       ),
-      child: Row(
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 10,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        alignment: WrapAlignment.spaceBetween,
         children: [
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white12,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              elevation: 0,
-            ),
-            onPressed: widget.onBack,
-            icon: const Icon(Icons.arrow_back_rounded, size: 16),
-            label: const Text("BACK", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-          ),
-          const SizedBox(width: 14),
-          const Icon(Icons.receipt_long_rounded, color: Color(0xFF38BDF8), size: 20),
-          const SizedBox(width: 8),
-          const Expanded(
-            child: Text(
-              "NEW TAX INVOICE (SALE BILLING)",
-              style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 0.5),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          SizedBox(
-            width: 120,
-            height: 36,
-            child: TextField(
-              controller: billNoC,
-              style: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.w900, fontSize: 12),
-              decoration: InputDecoration(
-                labelText: "BILL NO",
-                labelStyle: const TextStyle(color: Colors.white54, fontSize: 9),
-                filled: true,
-                fillColor: Colors.black26,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white12,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  elevation: 0,
+                ),
+                onPressed: widget.onBack,
+                icon: const Icon(Icons.arrow_back_rounded, size: 16),
+                label: const Text("BACK", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
               ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(value: 'CASH', label: Text('CASH', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
-              ButtonSegment(value: 'CREDIT', label: Text('CREDIT', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
+              const SizedBox(width: 12),
+              const Icon(Icons.receipt_long_rounded, color: Color(0xFF38BDF8), size: 20),
+              const SizedBox(width: 8),
+              const Text(
+                "NEW TAX INVOICE",
+                style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+              ),
+              const SizedBox(width: 8),
+              // 🏷️ Live Test ID Tag
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0x3310B981),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.greenAccent),
+                ),
+                child: const Text(
+                  currentTestId,
+                  style: TextStyle(color: Colors.greenAccent, fontSize: 9, fontWeight: FontWeight.w900),
+                ),
+              ),
             ],
-            selected: {paymentMode},
-            onSelectionChanged: (v) => setState(() => paymentMode = v.first),
           ),
+
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 125,
+                height: 36,
+                child: TextField(
+                  controller: billNoC,
+                  style: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.w900, fontSize: 12),
+                  decoration: InputDecoration(
+                    labelText: "BILL NO",
+                    labelStyle: const TextStyle(color: Colors.white54, fontSize: 9),
+                    filled: true,
+                    fillColor: Colors.black26,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'CASH', label: Text('CASH', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
+                  ButtonSegment(value: 'CREDIT', label: Text('CREDIT', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
+                ],
+                selected: {paymentMode},
+                onSelectionChanged: (v) => setState(() => paymentMode = v.first),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCustomerCard(PharoahWebManager webPh) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E293B),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: const BoxDecoration(
+                      color: Color(0x332563EB),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.person_rounded, color: Color(0xFF38BDF8), size: 16),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    "CUSTOMER / CONSIGNEE",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2563EB),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  elevation: 0,
+                ),
+                onPressed: () => _openQuickAddCustomer(webPh),
+                icon: const Icon(Icons.person_add_alt_1_rounded, size: 14),
+                label: const Text("+ CUSTOMER", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+          const Divider(color: Colors.white10, height: 20),
+
+          if (selectedParty != null)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.black26,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0x662563EB)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          selectedParty!.name.toUpperCase(),
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 13),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          "GST: ${selectedParty!.gst} | State: ${selectedParty!.state}",
+                          style: const TextStyle(color: Colors.white54, fontSize: 10),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 18, color: Colors.redAccent),
+                    onPressed: () => setState(() => selectedParty = null),
+                  ),
+                ],
+              ),
+            )
+          else
+            Autocomplete<Party>(
+              displayStringForOption: (p) => "${p.name} (${p.city})",
+              optionsBuilder: (textEditingValue) {
+                if (textEditingValue.text.isEmpty) return const Iterable.empty();
+                return webPh.parties.where((p) =>
+                    p.name.toLowerCase().contains(textEditingValue.text.toLowerCase()) ||
+                    p.city.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+              },
+              onSelected: (p) => setState(() => selectedParty = p),
+              fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                return TextField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                  decoration: InputDecoration(
+                    hintText: "Type Customer Name (Default: CASH)...",
+                    hintStyle: const TextStyle(color: Colors.white38, fontSize: 11),
+                    prefixIcon: const Icon(Icons.person_search, color: Colors.cyanAccent, size: 18),
+                    filled: true,
+                    fillColor: Colors.black26,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  ),
+                );
+              },
+            ),
         ],
       ),
     );
@@ -281,6 +433,7 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
 
   Widget _buildProductSearchCard(PharoahWebManager webPh) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B),
@@ -339,6 +492,7 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
 
   Widget _buildCartTable(PharoahWebManager webPh) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B),
@@ -464,138 +618,9 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
     child: Text(t, textAlign: isLeft ? TextAlign.left : TextAlign.center, style: TextStyle(color: color, fontSize: 11, fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
   );
 
-  Widget _buildCustomerCard(PharoahWebManager webPh) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Responsive Header that never overflows
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: const BoxDecoration(
-                  color: Color(0x332563EB),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.person_rounded, color: Color(0xFF38BDF8), size: 16),
-              ),
-              const SizedBox(width: 8),
-              const Expanded(
-                child: Text(
-                  "CUSTOMER / CONSIGNEE",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: 6),
-              InkWell(
-                onTap: () => _openQuickAddCustomer(webPh),
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2563EB),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.person_add_alt_1_rounded, color: Colors.white, size: 13),
-                      SizedBox(width: 4),
-                      Text(
-                        "NEW",
-                        style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const Divider(color: Colors.white10, height: 20),
-
-          // Selected Customer Card or Autocomplete
-          if (selectedParty != null)
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.black26,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0x662563EB)),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          selectedParty!.name.toUpperCase(),
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 13),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          "GST: ${selectedParty!.gst} | City: ${selectedParty!.city}",
-                          style: const TextStyle(color: Colors.white54, fontSize: 10),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded, size: 18, color: Colors.redAccent),
-                    onPressed: () => setState(() => selectedParty = null),
-                  ),
-                ],
-              ),
-            )
-          else
-            Autocomplete<Party>(
-              displayStringForOption: (p) => "${p.name} (${p.city})",
-              optionsBuilder: (textEditingValue) {
-                if (textEditingValue.text.isEmpty) return const Iterable.empty();
-                return webPh.parties.where((p) =>
-                    p.name.toLowerCase().contains(textEditingValue.text.toLowerCase()) ||
-                    p.city.toLowerCase().contains(textEditingValue.text.toLowerCase()));
-              },
-              onSelected: (p) => setState(() => selectedParty = p),
-              fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                return TextField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                  decoration: InputDecoration(
-                    hintText: "Select Customer (Default: CASH)...",
-                    hintStyle: const TextStyle(color: Colors.white38, fontSize: 11),
-                    prefixIcon: const Icon(Icons.person_search, color: Colors.cyanAccent, size: 18),
-                    filled: true,
-                    fillColor: Colors.black26,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                  ),
-                );
-              },
-            ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildGrandTotalCard(PharoahWebManager webPh) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
