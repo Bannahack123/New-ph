@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../models.dart';
 import 'web_sync_engine.dart';
 
 class PharoahWebManager with ChangeNotifier {
@@ -11,13 +12,16 @@ class PharoahWebManager with ChangeNotifier {
   String errorMessage = "";
   String successMessage = "";
 
+  // Store & Session Metadata
   String activeStoreToken = "";
   String activeUsername = "";
   String activePassword = "";
   String companyName = "PHAROAH STORE";
   String financialYear = "2026-27";
   Map<String, dynamic> companyProfile = {};
+  Map<String, dynamic> appConfig = {};
 
+  // Live Business Records
   List<dynamic> sales = [];
   List<dynamic> medicines = [];
   List<dynamic> parties = [];
@@ -27,11 +31,18 @@ class PharoahWebManager with ChangeNotifier {
   List<dynamic> purchaseChallans = [];
   List<dynamic> saleReturns = [];
   List<dynamic> purchaseReturns = [];
+  List<dynamic> companies = [];
+  List<dynamic> salts = [];
+  List<dynamic> routes = [];
+  List<dynamic> banks = [];
+  List<dynamic> numberingSeries = [];
+  Map<String, List<BatchInfo>> batchHistory = {};
 
   PharoahWebManager() {
     tryAutoLogin();
   }
 
+  /// 1. Silent Auto-Login on Page Reload / Re-open
   Future<bool> tryAutoLogin() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -77,6 +88,7 @@ class PharoahWebManager with ChangeNotifier {
     return false;
   }
 
+  /// 2. Login with Store Key, Username & Password
   Future<bool> loginWithStoreKey({
     required String storeToken,
     required String username,
@@ -124,7 +136,7 @@ class PharoahWebManager with ChangeNotifier {
     }
   }
 
-  /// Add newly created sale and decrement stock in web memory
+  /// 3. Add newly created sale and update memory
   void addSaleAndSync(Map<String, dynamic> newSale) {
     sales.add(newSale);
     if (newSale['items'] != null && newSale['items'] is List) {
@@ -135,11 +147,39 @@ class PharoahWebManager with ChangeNotifier {
           double decr = (it['qty'] as num? ?? 0).toDouble() + (it['freeQty'] as num? ?? 0).toDouble();
           medicines[idx]['stock'] = curStock - decr;
         }
+
+        // Decrement in batch history
+        String medKey = (it['medicineID'] ?? '').toString();
+        String batchNo = (it['batch'] ?? '').toString().trim().toUpperCase();
+        if (batchHistory.containsKey(medKey)) {
+          int bIdx = batchHistory[medKey]!.indexWhere((b) => b.batch.trim().toUpperCase() == batchNo);
+          if (bIdx != -1) {
+            double decr = (it['qty'] as num? ?? 0).toDouble() + (it['freeQty'] as num? ?? 0).toDouble();
+            batchHistory[medKey]![bIdx].qty -= decr;
+          }
+        }
       }
     }
     notifyListeners();
   }
 
+  /// 4. Quick-Add Party (Customer / Supplier)
+  void addParty(Map<String, dynamic> newParty) {
+    parties.add(newParty);
+    notifyListeners();
+  }
+
+  /// 5. Quick-Add Medicine / Product
+  void addMedicine(Map<String, dynamic> newMed) {
+    medicines.add(newMed);
+    String key = newMed['systemId'] ?? newMed['id'] ?? '';
+    if (key.isNotEmpty && !batchHistory.containsKey(key)) {
+      batchHistory[key] = [];
+    }
+    notifyListeners();
+  }
+
+  /// 6. Refresh Store Data Live
   Future<void> refreshStoreData() async {
     if (!isAuthenticated || activeStoreToken.isEmpty) return;
     isLoading = true;
@@ -163,6 +203,7 @@ class PharoahWebManager with ChangeNotifier {
     notifyListeners();
   }
 
+  /// 7. Parse All 16 Store JSON Files
   void _parseDownloadedFiles(Map<String, dynamic> files) {
     dynamic decodeJson(String fileName) {
       if (files.containsKey(fileName) && files[fileName] != null) {
@@ -184,8 +225,26 @@ class PharoahWebManager with ChangeNotifier {
     purchaseChallans = decodeJson('p_challan.json') as List? ?? [];
     saleReturns = decodeJson('s_return.json') as List? ?? [];
     purchaseReturns = decodeJson('p_return.json') as List? ?? [];
+    companies = decodeJson('comps.json') as List? ?? [];
+    salts = decodeJson('salts.json') as List? ?? [];
+    routes = decodeJson('routs.json') as List? ?? [];
+    banks = decodeJson('banks.json') as List? ?? [];
+    numberingSeries = decodeJson('series.json') as List? ?? [];
+    appConfig = decodeJson('config.json') as Map<String, dynamic>? ?? {};
+
+    // Parse bats.json into batchHistory map
+    var bData = decodeJson('bats.json');
+    batchHistory.clear();
+    if (bData != null && bData is Map) {
+      bData.forEach((k, v) {
+        if (v is List) {
+          batchHistory[k.toString()] = v.map((b) => BatchInfo.fromMap(b as Map<String, dynamic>)).toList();
+        }
+      });
+    }
   }
 
+  /// 8. Explicit Sign Out
   Future<void> signOut() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('web_auth_logged_in', false);
@@ -204,6 +263,7 @@ class PharoahWebManager with ChangeNotifier {
     purchaseChallans.clear();
     saleReturns.clear();
     purchaseReturns.clear();
+    batchHistory.clear();
     notifyListeners();
   }
 }

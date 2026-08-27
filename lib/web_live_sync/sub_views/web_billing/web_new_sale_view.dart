@@ -1,13 +1,14 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import '../../../models.dart';
 import '../../../gateway/company_registry_model.dart';
 import '../../../pdf/sale_invoice_pdf.dart';
 import '../../pharoah_web_manager.dart';
 import '../../web_cloud_config.dart';
 import 'web_item_entry_card.dart';
+import 'quick_add_party_modal.dart';
+import 'quick_add_product_modal.dart';
 import 'package:http/http.dart' as http;
 
 class WebNewSaleView extends StatefulWidget {
@@ -49,8 +50,9 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
     String shopState = (webPh.companyProfile['state'] ?? 'Rajasthan').toString();
     String partyState = (selectedParty != null ? (selectedParty!['state'] ?? 'Rajasthan') : 'Rajasthan').toString();
 
-    // Extract available batches for this medicine
-    List<BatchInfo> batches = [];
+    // Extract actual live batches for this medicine from batchHistory
+    List<BatchInfo> batches = webPh.batchHistory[med.identityKey] ?? [];
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -72,6 +74,33 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
           Navigator.pop(context);
         },
         onCancel: () => Navigator.pop(context),
+      ),
+    );
+  }
+
+  void _openQuickAddCustomer(PharoahWebManager webPh) {
+    showDialog(
+      context: context,
+      builder: (c) => QuickAddPartyModal(
+        webPh: webPh,
+        onPartyCreated: (newParty) {
+          setState(() {
+            selectedParty = newParty;
+          });
+        },
+      ),
+    );
+  }
+
+  void _openQuickAddProduct(PharoahWebManager webPh) {
+    showDialog(
+      context: context,
+      builder: (c) => QuickAddProductModal(
+        webPh: webPh,
+        onProductCreated: (newMedMap) {
+          final medObj = Medicine.fromMap(newMedMap);
+          _openItemEntry(medObj);
+        },
       ),
     );
   }
@@ -288,39 +317,55 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFF2563EB).withOpacity(0.4), width: 1.2),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Autocomplete<Map<String, dynamic>>(
-            displayStringForOption: (option) => "${option['name']} (${option['packing']})",
-            optionsBuilder: (textEditingValue) {
-              if (textEditingValue.text.isEmpty) return const Iterable.empty();
-              return webPh.medicines.where((m) =>
-                  (m['name'] ?? '').toString().toLowerCase().contains(textEditingValue.text.toLowerCase())).cast<Map<String, dynamic>>();
-            },
-            onSelected: (medMap) {
-              final medObj = Medicine.fromMap(medMap);
-              _openItemEntry(medObj);
-            },
-            fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-              return TextField(
-                controller: controller,
-                focusNode: focusNode,
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                decoration: InputDecoration(
-                  labelText: "SEARCH PRODUCT TO ADD TO INVOICE",
-                  labelStyle: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold),
-                  hintText: "Type medicine name (e.g. DOLO 650, PAN 40)...",
-                  hintStyle: const TextStyle(color: Colors.white24, fontSize: 11),
-                  prefixIcon: const Icon(Icons.search, color: Color(0xFF38BDF8), size: 18),
-                  suffixIcon: const Icon(Icons.add_circle_outline, color: Colors.cyanAccent, size: 20),
-                  filled: true,
-                  fillColor: Colors.black26,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                ),
-              );
-            },
+          // Product Autocomplete Field
+          Expanded(
+            child: Autocomplete<Map<String, dynamic>>(
+              displayStringForOption: (option) => "${option['name']} (${option['packing']})",
+              optionsBuilder: (textEditingValue) {
+                if (textEditingValue.text.isEmpty) return const Iterable.empty();
+                return webPh.medicines.where((m) =>
+                    (m['name'] ?? '').toString().toLowerCase().contains(textEditingValue.text.toLowerCase())).cast<Map<String, dynamic>>();
+              },
+              onSelected: (medMap) {
+                final medObj = Medicine.fromMap(medMap);
+                _openItemEntry(medObj);
+              },
+              fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                return TextField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  decoration: InputDecoration(
+                    labelText: "SEARCH PRODUCT / MEDICINE",
+                    labelStyle: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold),
+                    hintText: "Type medicine name (e.g. DOLO 650, PAN 40)...",
+                    hintStyle: const TextStyle(color: Colors.white24, fontSize: 11),
+                    prefixIcon: const Icon(Icons.search, color: Color(0xFF38BDF8), size: 18),
+                    filled: true,
+                    fillColor: Colors.black26,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(width: 12),
+
+          // Quick Add Product Button
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF7C3AED),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              elevation: 0,
+            ),
+            onPressed: () => _openQuickAddProduct(webPh),
+            icon: const Icon(Icons.add_box_rounded, size: 18),
+            label: const Text("+ PRODUCT", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 0.5)),
           ),
         ],
       ),
@@ -467,10 +512,27 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            children: const [
-              Icon(Icons.person_rounded, color: Color(0xFF38BDF8), size: 18),
-              SizedBox(width: 8),
-              Text("CUSTOMER / CONSIGNEE", style: TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: const [
+                  Icon(Icons.person_rounded, color: Color(0xFF38BDF8), size: 18),
+                  SizedBox(width: 8),
+                  Text("CUSTOMER / CONSIGNEE", style: TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                ],
+              ),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2563EB),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  elevation: 0,
+                ),
+                onPressed: () => _openQuickAddCustomer(webPh),
+                icon: const Icon(Icons.person_add_alt_1, size: 14),
+                label: const Text("+ CUSTOMER", style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold)),
+              ),
             ],
           ),
           const Divider(color: Colors.white10, height: 20),
