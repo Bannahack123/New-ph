@@ -64,17 +64,63 @@ function doPost(e) {
 }
 
 function doGet(e) {
-  // Handles PULL_STORE_DATA via GET for complete browser CORS bypass
-  if (e && e.parameter && e.parameter.action === "PULL_STORE_DATA") {
-    try {
+  if (e && e.parameter) {
+    var action = e.parameter.action;
+
+    // 🔍 3. LIST ALL STORES SAVED ON GOOGLE DRIVE
+    if (action === "LIST_ALL_STORES") {
+      try {
+        var folder = getCloudFolder();
+        var files = folder.getFiles();
+        var storeList = [];
+
+        while (files.hasNext()) {
+          var file = files.next();
+          var name = file.getName();
+          if (name.endsWith(".json")) {
+            try {
+              var data = JSON.parse(file.getBlob().getDataAsString());
+              var salesCount = 0;
+              var medsCount = 0;
+              if (data.files) {
+                if (data.files["sales.json"]) salesCount = JSON.parse(data.files["sales.json"]).length;
+                if (data.files["meds.json"]) medsCount = JSON.parse(data.files["meds.json"]).length;
+              }
+
+              storeList.push({
+                storeToken: data.storeToken || name.replace(".json", ""),
+                companyName: data.companyName || "Unknown",
+                adminUser: data.adminUser || "admin",
+                fy: data.fy || "N/A",
+                totalSales: salesCount,
+                totalMeds: medsCount,
+                syncedAt: data.syncedAt || file.getLastUpdated().toISOString(),
+                fileSizeKb: (file.getSize() / 1024).toFixed(2)
+              });
+            } catch(err) {
+              storeList.push({ storeToken: name, error: "Parse Error" });
+            }
+          }
+        }
+
+        return createJsonResponse({
+          status: "SUCCESS",
+          totalStores: storeList.length,
+          stores: storeList
+        });
+      } catch(err) {
+        return createJsonResponse({ status: "ERROR", message: err.toString() });
+      }
+    }
+
+    // PULL STORE DATA VIA GET (CORS-Safe)
+    if (action === "PULL_STORE_DATA") {
       var storeToken = e.parameter.storeToken;
       var username = e.parameter.username;
       var password = e.parameter.password;
       var folder = getCloudFolder();
 
       return handlePullRequest(storeToken, username, password, folder);
-    } catch (err) {
-      return createJsonResponse({ status: "ERROR", message: err.toString() });
     }
   }
 
@@ -110,7 +156,6 @@ function handlePullRequest(storeToken, username, password, folder) {
   var savedUser = (storeData.adminUser || "").trim().toLowerCase();
   var savedPass = (storeData.adminPassword || "").trim();
 
-  // Validate Credentials against stored snapshot
   if (savedUser === inputUser && savedPass === inputPass) {
     return createJsonResponse({
       status: "SUCCESS",

@@ -18,7 +18,7 @@ class AppSyncEngine {
     'series.json', 'shortage.json', 'routs.json', 'comps.json', 'salts.json'
   ];
 
-  /// 🔄 SMART 2-WAY SYNC: Merges Web transactions into App without overwriting local deletions
+  /// 🔄 BULLETPROOF 2-WAY SYNC ENGINE
   static Future<bool> pushStoreData(PharoahManager ph) async {
     try {
       if (ph.activeCompany == null || ph.currentFY.isEmpty) return false;
@@ -37,12 +37,12 @@ class AppSyncEngine {
         );
 
         final pullRes = await http.get(pullUri).timeout(const Duration(seconds: 15));
-        if (pullRes.statusCode == 200) {
+        if (pullRes.statusCode == 200 && !pullRes.body.contains("ERROR")) {
           final Map<String, dynamic> cloudData = jsonDecode(pullRes.body);
           if (cloudData['status'] == 'SUCCESS' && cloudData['files'] != null) {
             final Map<String, dynamic> cloudFiles = cloudData['files'];
 
-            // 1. Merge Web Sales (Only new bills created on Web)
+            // 1. Merge Web Sales
             if (cloudFiles['sales.json'] != null) {
               List<dynamic> cloudSalesList = jsonDecode(cloudFiles['sales.json'].toString());
               Set<String> appSaleIds = ph.sales.map((s) => s.id).toSet();
@@ -55,7 +55,6 @@ class AppSyncEngine {
                 String bNo = saleMap['billNo'] ?? '';
                 String tag = saleMap['sourceTag'] ?? '';
 
-                // Only add if it was created on Web and is not already in App
                 if ((tag == 'WEB-PORTAL' || sId.startsWith('SALE-WEB')) &&
                     !appSaleIds.contains(sId) &&
                     !appBillNos.contains(bNo)) {
@@ -69,7 +68,7 @@ class AppSyncEngine {
               }
             }
 
-            // 2. Merge Web Parties (Only new customers created on Web)
+            // 2. Merge Web Parties
             if (cloudFiles['parts.json'] != null) {
               List<dynamic> cloudPartsList = jsonDecode(cloudFiles['parts.json'].toString());
               Set<String> appPartNames = ph.parties.map((p) => p.name.toUpperCase().trim()).toSet();
@@ -91,7 +90,7 @@ class AppSyncEngine {
               }
             }
 
-            // 3. Merge Web Products (Only new products created on Web)
+            // 3. Merge Web Products
             if (cloudFiles['meds.json'] != null) {
               List<dynamic> cloudMedsList = jsonDecode(cloudFiles['meds.json'].toString());
               Set<String> appMedNames = ph.medicines.map((m) => m.name.toUpperCase().trim()).toSet();
@@ -113,7 +112,6 @@ class AppSyncEngine {
               }
             }
 
-            // Reload memory & rebuild stock
             await ph.loadAllData();
           }
         }
@@ -121,7 +119,7 @@ class AppSyncEngine {
         debugPrint("Smart pull error: $e");
       }
 
-      // STEP 2: PUSH CONSOLIDATED LOCAL APP STATE TO CLOUD (Preserves Deletions)
+      // STEP 2: PUSH CONSOLIDATED LOCAL APP DATABASE TO CLOUD
       Map<String, String> filesPayload = {};
       for (var name in _coreFiles) {
         final file = File('$workingDir/$name');
@@ -143,13 +141,18 @@ class AppSyncEngine {
         "syncedAt": DateTime.now().toIso8601String(),
       };
 
-      final response = await http.post(
-        Uri.parse(WebCloudConfig.cloudRelayEndpoint),
-        headers: WebCloudConfig.standardHeaders,
-        body: jsonEncode(payload),
-      ).timeout(WebCloudConfig.networkTimeout);
+      // Direct HTTP Request with auto-redirect handling
+      final client = http.Client();
+      final request = http.Request('POST', Uri.parse(WebCloudConfig.cloudRelayEndpoint))
+        ..headers.addAll(WebCloudConfig.standardHeaders)
+        ..body = jsonEncode(payload)
+        ..followRedirects = true;
 
-      if (response.statusCode == 200 || response.statusCode == 302 || response.body.contains("SUCCESS")) {
+      final streamedResponse = await client.send(request).timeout(WebCloudConfig.networkTimeout);
+      final response = await http.Response.fromStream(streamedResponse);
+
+      // Handle 200, 302 and Success Bodies
+      if (response.statusCode >= 200 && response.statusCode < 400) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('last_cloud_sync_time', DateTime.now().toIso8601String());
         return true;
