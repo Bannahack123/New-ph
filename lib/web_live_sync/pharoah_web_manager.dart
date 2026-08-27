@@ -3,6 +3,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'web_models.dart';
@@ -10,6 +11,7 @@ import 'web_inventory_logic_center.dart';
 import 'web_sync_engine.dart';
 import 'web_pharoah_numbering_engine.dart';
 import 'web_app_date_logic.dart';
+import 'web_cloud_config.dart';
 
 class PharoahWebManager with ChangeNotifier {
   bool isLoading = false;
@@ -253,6 +255,58 @@ class PharoahWebManager with ChangeNotifier {
     }
   }
 
+  // ===========================================================================
+  // ⚡ 2-WAY CLOUD PUSH: Web Updates Ko Cloud Drive Par Save Karna
+  // ===========================================================================
+  Future<bool> pushUpdatedDataToCloud() async {
+    try {
+      if (!isAuthenticated || activeStoreToken.isEmpty) return false;
+
+      Map<String, String> filesPayload = {
+        'meds.json': jsonEncode(medicines.map((e) => e.toMap()).toList()),
+        'parts.json': jsonEncode(parties.map((e) => e.toMap()).toList()),
+        'sales.json': jsonEncode(sales.map((e) => e.toMap()).toList()),
+        'purc.json': jsonEncode(purchases.map((e) => e.toMap()).toList()),
+        'vouc.json': jsonEncode(vouchers.map((e) => e.toMap()).toList()),
+        's_challan.json': jsonEncode(saleChallans.map((e) => e.toMap()).toList()),
+        'p_challan.json': jsonEncode(purchaseChallans.map((e) => e.toMap()).toList()),
+        's_return.json': jsonEncode(saleReturns.map((e) => e.toMap()).toList()),
+        'p_return.json': jsonEncode(purchaseReturns.map((e) => e.toMap()).toList()),
+        'comps.json': jsonEncode(companies.map((e) => e.toMap()).toList()),
+        'salts.json': jsonEncode(salts.map((e) => e.toMap()).toList()),
+        'routs.json': jsonEncode(routes.map((e) => e.toMap()).toList()),
+        'banks.json': jsonEncode(banks.map((e) => e.toMap()).toList()),
+        'series.json': jsonEncode(numberingSeries.map((e) => e.toMap()).toList()),
+        'config.json': jsonEncode(appConfig.toMap()),
+        'bats.json': jsonEncode(batchHistory.map((k, v) => MapEntry(k, v.map((b) => b.toMap()).toList()))),
+      };
+
+      final payload = {
+        "action": WebCloudConfig.actionPushStore,
+        "storeToken": activeStoreToken,
+        "companyId": companyProfile['id'] ?? 'STORE',
+        "companyName": companyName,
+        "adminUser": activeUsername,
+        "adminPassword": activePassword,
+        "fy": financialYear,
+        "registryProfile": companyProfile,
+        "files": filesPayload,
+        "syncedAt": DateTime.now().toIso8601String(),
+      };
+
+      final response = await http.post(
+        Uri.parse(WebCloudConfig.cloudRelayEndpoint),
+        headers: WebCloudConfig.standardHeaders,
+        body: jsonEncode(payload),
+      ).timeout(const Duration(seconds: 25));
+
+      return response.statusCode == 200 || response.body.contains("SUCCESS");
+    } catch (e) {
+      debugPrint("Web push error: $e");
+      return false;
+    }
+  }
+
   void addSaleAndSync(Sale sale) {
     sales.add(sale);
     for (var item in sale.items) {
@@ -278,6 +332,7 @@ class PharoahWebManager with ChangeNotifier {
     }
     rebuildInventory();
     notifyListeners();
+    pushUpdatedDataToCloud(); // Sync to Google Drive
   }
 
   void addPurchaseAndSync(Purchase purchase) {
@@ -305,6 +360,7 @@ class PharoahWebManager with ChangeNotifier {
     }
     rebuildInventory();
     notifyListeners();
+    pushUpdatedDataToCloud();
   }
 
   String getOrCreateCompany(String name) {
@@ -313,6 +369,7 @@ class PharoahWebManager with ChangeNotifier {
     } catch (_) {
       String id = "CP-${1000 + companies.length + 1}";
       companies.add(Company(id: id, name: name.trim().toUpperCase()));
+      pushUpdatedDataToCloud();
       return id;
     }
   }
@@ -323,6 +380,7 @@ class PharoahWebManager with ChangeNotifier {
     } catch (_) {
       String id = "SL-${1000 + salts.length + 1}";
       salts.add(Salt(id: id, name: name.trim().toUpperCase()));
+      pushUpdatedDataToCloud();
       return id;
     }
   }
@@ -330,6 +388,7 @@ class PharoahWebManager with ChangeNotifier {
   void addParty(Party newParty) {
     parties.add(newParty);
     notifyListeners();
+    pushUpdatedDataToCloud();
   }
 
   void updateParty(Party updatedParty) {
@@ -337,12 +396,14 @@ class PharoahWebManager with ChangeNotifier {
     if (idx != -1) {
       parties[idx] = updatedParty;
       notifyListeners();
+      pushUpdatedDataToCloud();
     }
   }
 
   void deleteParty(String partyId) {
     parties.removeWhere((p) => p.id == partyId);
     notifyListeners();
+    pushUpdatedDataToCloud();
   }
 
   void addMedicine(Medicine newMed) {
@@ -351,6 +412,7 @@ class PharoahWebManager with ChangeNotifier {
       batchHistory[newMed.identityKey] = [];
     }
     notifyListeners();
+    pushUpdatedDataToCloud();
   }
 
   void updateMedicine(Medicine updatedMed) {
@@ -358,12 +420,14 @@ class PharoahWebManager with ChangeNotifier {
     if (idx != -1) {
       medicines[idx] = updatedMed;
       notifyListeners();
+      pushUpdatedDataToCloud();
     }
   }
 
   void deleteMedicine(String medId) {
     medicines.removeWhere((item) => item.id == medId);
     notifyListeners();
+    pushUpdatedDataToCloud();
   }
 
   String getNextBillNumber(String type, String defaultPrefix, int defaultStart) {

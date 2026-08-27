@@ -1,3 +1,5 @@
+// FILE: lib/web_live_sync/app_sync_engine.dart
+
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -12,9 +14,10 @@ class AppSyncEngine {
     'meds.json', 'parts.json', 'sales.json', 'purc.json',
     'bats.json', 'vouc.json', 's_challan.json', 'p_challan.json',
     's_return.json', 'p_return.json', 'banks.json', 'config.json',
-    'series.json', 'shortage.json', 'routs.json', 'comps.json'
+    'series.json', 'shortage.json', 'routs.json', 'comps.json', 'salts.json'
   ];
 
+  /// 🔄 TRUE 2-WAY SYNC: Pehle Cloud se Web ka data download karta hai, App me save karta hai, fir push karta hai
   static Future<bool> pushStoreData(PharoahManager ph) async {
     try {
       if (ph.activeCompany == null || ph.currentFY.isEmpty) return false;
@@ -23,6 +26,38 @@ class AppSyncEngine {
 
       final storeToken = await WebLiveToken.getOrCreateToken(ph.activeCompany!.id);
 
+      // STEP 1: PULL FROM CLOUD (Check if Web created bills/customers)
+      try {
+        final pullUri = Uri.parse(
+          "${WebCloudConfig.cloudRelayEndpoint}?action=PULL_STORE_DATA"
+          "&storeToken=${Uri.encodeComponent(storeToken)}"
+          "&username=${Uri.encodeComponent(ph.activeCompany!.adminUser.toLowerCase())}"
+          "&password=${Uri.encodeComponent(ph.activeCompany!.password)}"
+        );
+
+        final pullRes = await http.get(pullUri).timeout(const Duration(seconds: 15));
+        if (pullRes.statusCode == 200) {
+          final Map<String, dynamic> cloudData = jsonDecode(pullRes.body);
+          if (cloudData['status'] == 'SUCCESS' && cloudData['files'] != null) {
+            final Map<String, dynamic> cloudFiles = cloudData['files'];
+
+            // Save cloud files into App local folder
+            for (var entry in cloudFiles.entries) {
+              final localFile = File('$workingDir/${entry.key}');
+              if (entry.value != null && entry.value.toString().isNotEmpty) {
+                await localFile.writeAsString(entry.value.toString());
+              }
+            }
+
+            // Reload App Memory immediately
+            await ph.loadAllData();
+          }
+        }
+      } catch (e) {
+        debugPrint("Pull before push error: $e");
+      }
+
+      // STEP 2: PUSH LOCAL APP DATABASE BACK TO CLOUD
       Map<String, String> filesPayload = {};
       for (var name in _coreFiles) {
         final file = File('$workingDir/$name');
@@ -50,7 +85,7 @@ class AppSyncEngine {
         body: jsonEncode(payload),
       ).timeout(WebCloudConfig.networkTimeout);
 
-      if (response.statusCode == 200 || response.statusCode == 302 || response.body.contains("SUCCESS")) {
+      if (response.statusCode == 200 || response.body.contains("SUCCESS")) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('last_cloud_sync_time', DateTime.now().toIso8601String());
         return true;

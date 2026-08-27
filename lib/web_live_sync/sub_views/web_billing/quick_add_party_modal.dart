@@ -6,7 +6,7 @@ import '../../pharoah_web_manager.dart';
 
 class QuickAddPartyModal extends StatefulWidget {
   final PharoahWebManager webPh;
-  final Function(Map<String, dynamic> newParty) onPartyCreated;
+  final Function(Party newParty) onPartyCreated;
 
   const QuickAddPartyModal({
     super.key,
@@ -21,14 +21,29 @@ class QuickAddPartyModal extends StatefulWidget {
 class _QuickAddPartyModalState extends State<QuickAddPartyModal> {
   final nameC = TextEditingController();
   final phoneC = TextEditingController();
+  final emailC = TextEditingController();
+  final addressC = TextEditingController();
+  final cityC = TextEditingController();
   final gstC = TextEditingController();
   final panC = TextEditingController();
   final dlC = TextEditingController();
-  final addressC = TextEditingController();
-  final cityC = TextEditingController();
+  final dlExpC = TextEditingController();
+  final opBalC = TextEditingController(text: "0.0");
+  final creditLimitC = TextEditingController(text: "0.0");
+  final creditDaysC = TextEditingController(text: "30");
 
   String selectedGroup = "Sundry Debtors";
   String selectedState = "Rajasthan";
+  String selectedPriceLevel = "A";
+  String selectedSeriesId = "";
+
+  final List<String> accountGroups = [
+    "Sundry Debtors",
+    "Sundry Creditors",
+    "Bank Accounts",
+    "Cash in Hand",
+    "Expenses",
+  ];
 
   final List<String> states = [
     "Andhra Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana",
@@ -41,6 +56,7 @@ class _QuickAddPartyModalState extends State<QuickAddPartyModal> {
   @override
   void initState() {
     super.initState();
+    // Auto-extract PAN from GSTIN (Exact App Logic)
     gstC.addListener(() {
       if (gstC.text.length >= 12) {
         String extPan = gstC.text.substring(2, 12).toUpperCase();
@@ -55,18 +71,23 @@ class _QuickAddPartyModalState extends State<QuickAddPartyModal> {
   void dispose() {
     nameC.dispose();
     phoneC.dispose();
+    emailC.dispose();
+    addressC.dispose();
+    cityC.dispose();
     gstC.dispose();
     panC.dispose();
     dlC.dispose();
-    addressC.dispose();
-    cityC.dispose();
+    dlExpC.dispose();
+    opBalC.dispose();
+    creditLimitC.dispose();
+    creditDaysC.dispose();
     super.dispose();
   }
 
   void _saveParty() {
     if (nameC.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Customer / Firm Name is required!"), backgroundColor: Colors.orange),
+        const SnackBar(content: Text("Firm / Customer Name is required!"), backgroundColor: Colors.orange),
       );
       return;
     }
@@ -76,25 +97,30 @@ class _QuickAddPartyModalState extends State<QuickAddPartyModal> {
       name: nameC.text.trim().toUpperCase(),
       group: selectedGroup,
       phone: phoneC.text.trim(),
-      email: '',
+      email: emailC.text.trim().toLowerCase(),
       address: addressC.text.trim(),
       city: cityC.text.trim().toUpperCase(),
       state: selectedState,
       gst: gstC.text.trim().toUpperCase().isEmpty ? 'N/A' : gstC.text.trim().toUpperCase(),
       pan: panC.text.trim().toUpperCase(),
       dl: dlC.text.trim().toUpperCase().isEmpty ? 'N/A' : dlC.text.trim().toUpperCase(),
-      opBal: 0.0,
-      creditLimit: 0.0,
-      creditDays: 30,
+      dlExp: dlExpC.text.trim(),
+      opBal: double.tryParse(opBalC.text) ?? 0.0,
+      creditLimit: double.tryParse(creditLimitC.text) ?? 0.0,
+      creditDays: int.tryParse(creditDaysC.text) ?? 30,
+      priceLevel: selectedPriceLevel,
+      defaultSeriesId: selectedSeriesId,
     );
 
     widget.webPh.addParty(newParty);
-    widget.onPartyCreated(newParty.toMap());
+    widget.onPartyCreated(newParty);
     Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
+    final activeSeries = widget.webPh.numberingSeries.where((s) => s.type == "SALE" && s.isActive).toList();
+
     return AlertDialog(
       backgroundColor: const Color(0xFF1E293B),
       shape: RoundedRectangleBorder(
@@ -113,36 +139,38 @@ class _QuickAddPartyModalState extends State<QuickAddPartyModal> {
           ),
           const SizedBox(width: 12),
           const Text(
-            "QUICK ADD CUSTOMER",
-            style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+            "QUICK CREATE CUSTOMER / PARTY",
+            style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
           ),
         ],
       ),
       content: SizedBox(
-        width: 520,
+        width: 600,
         child: SingleChildScrollView(
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _inputField("FIRM / CUSTOMER NAME *", nameC, Icons.business, isCaps: true),
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Expanded(child: _inputField("MOBILE NUMBER", phoneC, Icons.phone, isNum: true)),
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      value: selectedGroup,
+                      dropdownColor: const Color(0xFF1E293B),
+                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                      decoration: _dropdownDecor("ACCOUNT GROUP *"),
+                      items: accountGroups.map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
+                      onChanged: (v) => setState(() => selectedGroup = v!),
+                    ),
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      value: selectedState,
+                      value: states.contains(selectedState) ? selectedState : "Rajasthan",
                       dropdownColor: const Color(0xFF1E293B),
                       style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                      decoration: InputDecoration(
-                        labelText: "STATE (FOR GST)",
-                        labelStyle: const TextStyle(color: Colors.white54, fontSize: 9, fontWeight: FontWeight.bold),
-                        filled: true,
-                        fillColor: Colors.black26,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                      ),
+                      decoration: _dropdownDecor("STATE (FOR GST)"),
                       items: states.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                       onChanged: (v) => setState(() => selectedState = v!),
                     ),
@@ -152,15 +180,68 @@ class _QuickAddPartyModalState extends State<QuickAddPartyModal> {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Expanded(child: _inputField("GSTIN NUMBER", gstC, Icons.receipt_long, isCaps: true)),
+                  Expanded(child: _inputField("MOBILE NUMBER", phoneC, Icons.phone, isNum: true)),
                   const SizedBox(width: 10),
-                  Expanded(child: _inputField("DRUG LICENSE (DL)", dlC, Icons.medical_services, isCaps: true)),
+                  Expanded(child: _inputField("EMAIL ID", emailC, Icons.email)),
                 ],
               ),
               const SizedBox(height: 12),
-              _inputField("CITY", cityC, Icons.location_city, isCaps: true),
+              Row(
+                children: [
+                  Expanded(child: _inputField("GSTIN NUMBER", gstC, Icons.receipt_long, isCaps: true)),
+                  const SizedBox(width: 10),
+                  Expanded(child: _inputField("PAN (AUTO FROM GST)", panC, Icons.badge_outlined, isCaps: true)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(child: _inputField("DRUG LICENSE (DL)", dlC, Icons.medical_services, isCaps: true)),
+                  const SizedBox(width: 10),
+                  Expanded(child: _inputField("DL EXPIRY", dlExpC, Icons.event_busy, isCaps: true)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(child: _inputField("CITY", cityC, Icons.location_city, isCaps: true)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      value: selectedPriceLevel,
+                      dropdownColor: const Color(0xFF1E293B),
+                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                      decoration: _dropdownDecor("PRICING LEVEL"),
+                      items: ["A", "B", "C"].map((p) => DropdownMenuItem(value: p, child: Text("Rate $p"))).toList(),
+                      onChanged: (v) => setState(() => selectedPriceLevel = v!),
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 12),
               _inputField("OFFICE / SHOP ADDRESS", addressC, Icons.location_on),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(child: _inputField("OPENING BALANCE ₹", opBalC, Icons.account_balance_wallet, isNum: true)),
+                  const SizedBox(width: 8),
+                  Expanded(child: _inputField("CREDIT LIMIT ₹", creditLimitC, Icons.speed, isNum: true)),
+                  const SizedBox(width: 8),
+                  Expanded(child: _inputField("CREDIT DAYS", creditDaysC, Icons.timer, isNum: true)),
+                ],
+              ),
+              if (activeSeries.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: selectedSeriesId.isEmpty ? null : selectedSeriesId,
+                  dropdownColor: const Color(0xFF1E293B),
+                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                  decoration: _dropdownDecor("DEFAULT BILLING SERIES PREFERENCE"),
+                  items: activeSeries.map((s) => DropdownMenuItem(value: s.id, child: Text("${s.name} (${s.prefix})"))).toList(),
+                  onChanged: (v) => setState(() => selectedSeriesId = v ?? ""),
+                  hint: const Text("Select Default Series (Optional)", style: TextStyle(color: Colors.white38, fontSize: 11)),
+                ),
+              ],
             ],
           ),
         ),
@@ -186,7 +267,7 @@ class _QuickAddPartyModalState extends State<QuickAddPartyModal> {
   Widget _inputField(String label, TextEditingController ctrl, IconData icon, {bool isNum = false, bool isCaps = false}) {
     return TextField(
       controller: ctrl,
-      keyboardType: isNum ? TextInputType.number : TextInputType.text,
+      keyboardType: isNum ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text,
       textCapitalization: isCaps ? TextCapitalization.characters : TextCapitalization.none,
       style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
       decoration: InputDecoration(
@@ -198,6 +279,17 @@ class _QuickAddPartyModalState extends State<QuickAddPartyModal> {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
         contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       ),
+    );
+  }
+
+  InputDecoration _dropdownDecor(String label) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: const TextStyle(color: Colors.white54, fontSize: 8.5, fontWeight: FontWeight.bold),
+      filled: true,
+      fillColor: Colors.black26,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
     );
   }
 }

@@ -75,7 +75,7 @@ class WebInvoiceFeed extends StatelessWidget {
                     2: FlexColumnWidth(3),
                     3: FixedColumnWidth(110),
                     4: FixedColumnWidth(130),
-                    5: FixedColumnWidth(130),
+                    5: FixedColumnWidth(140),
                   },
                   children: [
                     TableRow(
@@ -160,8 +160,8 @@ class WebInvoiceFeed extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         IconButton(
-          icon: const Icon(Icons.print_outlined, size: 16, color: Colors.white70),
-          tooltip: "Print PDF",
+          icon: const Icon(Icons.print_outlined, size: 16, color: Color(0xFF38BDF8)),
+          tooltip: "Print Landscape Preview",
           onPressed: () {
             final partyObj = webPh.parties.firstWhere(
               (p) => p.name == sale.partyName,
@@ -170,6 +170,24 @@ class WebInvoiceFeed extends StatelessWidget {
             final shopProfile = CompanyProfile.fromMap(webPh.companyProfile);
 
             WebPdfRouterService.printSaleInvoice(
+              sale: sale,
+              party: partyObj,
+              shop: shopProfile,
+              config: webPh.appConfig,
+            );
+          },
+        ),
+        IconButton(
+          icon: const Icon(Icons.download_rounded, size: 16, color: Colors.greenAccent),
+          tooltip: "Download PDF File (Save to Files)",
+          onPressed: () {
+            final partyObj = webPh.parties.firstWhere(
+              (p) => p.name == sale.partyName,
+              orElse: () => Party(id: 'temp', name: sale.partyName, gst: sale.partyGstin, state: sale.partyState),
+            );
+            final shopProfile = CompanyProfile.fromMap(webPh.companyProfile);
+
+            WebPdfRouterService.downloadSalePdf(
               sale: sale,
               party: partyObj,
               shop: shopProfile,

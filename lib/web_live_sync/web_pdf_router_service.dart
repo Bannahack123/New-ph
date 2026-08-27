@@ -1,6 +1,7 @@
 // ignore_for_file: prefer_const_constructors, prefer_const_literals_to_create_immutables
 // FILE: lib/web_live_sync/web_pdf_router_service.dart
 
+import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -9,8 +10,8 @@ import 'web_models.dart';
 import '../../pdf/pdf_master_service.dart';
 
 class WebPdfRouterService {
-  /// 1. Direct Web Browser Sale Invoice Print
-  static Future<void> printSaleInvoice({
+  /// 1. Generate Pure A4 Landscape PDF Bytes (Same as Mobile Architect Invoice)
+  static Future<Uint8List> generateSaleBytes({
     required Sale sale,
     required Party party,
     required CompanyProfile shop,
@@ -40,6 +41,7 @@ class WebPdfRouterService {
             decoration: pw.BoxDecoration(border: pw.Border.all(width: 1)),
             child: pw.Column(
               children: [
+                // Top Header Box (800pt Fixed)
                 pw.Row(
                   children: [
                     _hBox(
@@ -83,6 +85,7 @@ class WebPdfRouterService {
                     ),
                   ],
                 ),
+                // Table Columns (800pt Exact Grid)
                 pw.Container(
                   color: PdfColors.grey200,
                   decoration: pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(width: 0.5))),
@@ -107,6 +110,7 @@ class WebPdfRouterService {
                     ],
                   ),
                 ),
+                // Table Rows
                 pw.Expanded(
                   child: pw.Column(
                     children: pageItems.asMap().entries.map((entry) {
@@ -145,7 +149,7 @@ class WebPdfRouterService {
                     }).toList(),
                   ),
                 ),
-                if (isLastPage) _buildFooter(shop.name, sale, isLocal),
+                if (isLastPage) _buildFooter(shop.name, sale, config, isLocal),
               ],
             ),
           ),
@@ -153,94 +157,35 @@ class WebPdfRouterService {
       );
     }
 
+    return pdf.save();
+  }
+
+  /// 2. Direct Browser Print in A4 Landscape
+  static Future<void> printSaleInvoice({
+    required Sale sale,
+    required Party party,
+    required CompanyProfile shop,
+    required AppConfig config,
+  }) async {
+    final bytes = await generateSaleBytes(sale: sale, party: party, shop: shop, config: config);
     await Printing.layoutPdf(
-      onLayout: (format) async => pdf.save(),
+      onLayout: (format) async => bytes,
       name: 'Invoice_${sale.billNo}',
       format: PdfPageFormat.a4.landscape,
     );
   }
 
-  /// 2. Direct Web Browser Voucher Print
-  static Future<void> printVoucherReceipt({
-    required Voucher voucher,
+  /// 3. Direct PDF Download / Save File (Exact like Mobile App Save)
+  static Future<void> downloadSalePdf({
+    required Sale sale,
     required Party party,
     required CompanyProfile shop,
+    required AppConfig config,
   }) async {
-    final pdf = pw.Document();
-    bool isReceipt = voucher.type == "Receipt";
-
-    pdf.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat(105 * PdfPageFormat.mm, 148 * PdfPageFormat.mm, marginAll: 5 * PdfPageFormat.mm),
-        build: (context) => pw.Container(
-          padding: pw.EdgeInsets.all(6),
-          decoration: pw.BoxDecoration(border: pw.Border.all(width: 0.8)),
-          child: pw.Column(
-            children: [
-              pw.Text(shop.name.toUpperCase(), style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
-              pw.Text(shop.address, style: const pw.TextStyle(fontSize: 6), textAlign: pw.TextAlign.center),
-              pw.Text("GSTIN: ${shop.gstin}", style: const pw.TextStyle(fontSize: 6)),
-              pw.Divider(thickness: 0.5),
-              pw.Text("${voucher.type.toUpperCase()} VOUCHER", style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 4),
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text("No: ${voucher.voucherNo}", style: const pw.TextStyle(fontSize: 7)),
-                  pw.Text("Date: ${DateFormat('dd-MM-yyyy').format(voucher.date)}", style: const pw.TextStyle(fontSize: 7)),
-                ],
-              ),
-              pw.Divider(thickness: 0.5),
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text(isReceipt ? "Received From:" : "Paid To:", style: const pw.TextStyle(fontSize: 7)),
-                  pw.Text(party.name, style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
-                ],
-              ),
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text("Account:", style: const pw.TextStyle(fontSize: 7)),
-                  pw.Text(voucher.depositedIn, style: const pw.TextStyle(fontSize: 7)),
-                ],
-              ),
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text("Mode:", style: const pw.TextStyle(fontSize: 7)),
-                  pw.Text(voucher.paymentMode, style: const pw.TextStyle(fontSize: 7)),
-                ],
-              ),
-              pw.Spacer(),
-              pw.Container(
-                padding: pw.EdgeInsets.all(6),
-                decoration: pw.BoxDecoration(color: PdfColors.grey100),
-                child: pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text("TOTAL AMOUNT", style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
-                    pw.Text("Rs. ${voucher.amount.toStringAsFixed(2)}", style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold)),
-                  ],
-                ),
-              ),
-              pw.SizedBox(height: 4),
-              pw.Text("Amount in Words: RUPEES ${PdfMasterService.numberToWords(voucher.amount.round())} ONLY",
-                  style: const pw.TextStyle(fontSize: 5.5)),
-              pw.Spacer(),
-              pw.Align(
-                alignment: pw.Alignment.bottomRight,
-                child: pw.Text("Authorised Signatory for ${shop.name}", style: const pw.TextStyle(fontSize: 6)),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    await Printing.layoutPdf(
-      onLayout: (format) async => pdf.save(),
-      name: 'Voucher_${voucher.voucherNo}',
+    final bytes = await generateSaleBytes(sale: sale, party: party, shop: shop, config: config);
+    await Printing.sharePdf(
+      bytes: bytes,
+      filename: 'Invoice_${sale.billNo}.pdf',
     );
   }
 
@@ -279,7 +224,7 @@ class WebPdfRouterService {
         child: pw.Text(t, style: const pw.TextStyle(fontSize: 7.5)),
       );
 
-  static pw.Widget _buildFooter(String shopName, Sale sale, bool isLocal) {
+  static pw.Widget _buildFooter(String shopName, Sale sale, AppConfig config, bool isLocal) {
     double taxableTotal = sale.items.fold(0.0, (sum, i) => sum + (i.qty * i.rate));
     double totalTax = sale.items.fold(0.0, (sum, i) => sum + (i.cgst + i.sgst + i.igst));
 
@@ -288,6 +233,7 @@ class WebPdfRouterService {
       decoration: pw.BoxDecoration(border: pw.Border(top: pw.BorderSide(width: 0.5))),
       child: pw.Row(
         children: [
+          // Left: Bank & Terms (From AppConfig)
           pw.Container(
             width: 330,
             padding: const pw.EdgeInsets.all(5),
@@ -298,11 +244,16 @@ class WebPdfRouterService {
                 pw.Text("Amount in Words: RUPEES ${PdfMasterService.numberToWords(sale.totalAmount.round())} ONLY",
                     style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: PdfColors.blue800)),
                 pw.Spacer(),
-                pw.Text("Terms: Goods once sold will not be taken back. Disputes subject to local jurisdiction.",
+                if (config.bankAccNumber.isNotEmpty) ...[
+                  pw.Text("BANK: ${config.bankNameBranch.toUpperCase()} | A/C: ${config.bankAccNumber}", style: pw.TextStyle(fontSize: 6.5, fontWeight: pw.FontWeight.bold)),
+                  pw.Text("IFSC: ${config.bankIfsc.toUpperCase()} | BENEFICIARY: ${config.bankAccName.toUpperCase()}", style: pw.TextStyle(fontSize: 6.5, fontWeight: pw.FontWeight.bold)),
+                ],
+                pw.Text(config.termsAndConditions.isNotEmpty ? config.termsAndConditions : "Terms: Goods once sold will not be taken back.",
                     style: const pw.TextStyle(fontSize: 6), maxLines: 2),
               ],
             ),
           ),
+          // Center: Tax Calculation Breakdown
           pw.Container(
             width: 250,
             padding: const pw.EdgeInsets.all(5),
@@ -328,6 +279,7 @@ class WebPdfRouterService {
               ],
             ),
           ),
+          // Right: Signatory
           pw.Container(
             width: 220,
             padding: const pw.EdgeInsets.all(5),
@@ -336,7 +288,7 @@ class WebPdfRouterService {
               children: [
                 pw.Text("For $shopName", style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
                 pw.SizedBox(height: 30),
-                pw.Text("AUTHORISED SIGNATORY", style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.grey700)),
+                pw.Text(config.signLabel.isNotEmpty ? config.signLabel.toUpperCase() : "AUTHORISED SIGNATORY", style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.grey700)),
               ],
             ),
           ),

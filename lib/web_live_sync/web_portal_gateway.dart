@@ -43,7 +43,6 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
   }
 
   void _handleActionTap(String actionTitle, IconData icon, String navKey) {
-    // 1. Add to Recent Shortcuts
     if (!recentShortcuts.any((item) => item['module'] == navKey)) {
       setState(() {
         recentShortcuts.insert(0, {
@@ -57,7 +56,6 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
       });
     }
 
-    // 2. Active Screen Router
     _navigateToHub(navKey, actionTitle.toUpperCase());
   }
 
@@ -93,6 +91,9 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
       );
     }
 
+    // Check if user is on Home Dashboard
+    bool isHomeDashboard = currentView == "HOME";
+
     // 2. Authenticated Workstation
     return Scaffold(
       backgroundColor: const Color(0xFF0B132B),
@@ -103,17 +104,18 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
       body: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Sidebar
-          WebRecentSidebar(
-            currentView: currentView,
-            recentShortcuts: recentShortcuts,
-            onHomeTap: () => _navigateToHub("HOME", "MAIN BUSINESS MODULES"),
-            onActionTap: _handleActionTap,
-            onRemoveShortcut: _removeShortcut,
-            onClearAll: _clearAllRecents,
-          ),
+          // Sidebar ONLY visible on Main Dashboard (Auto-Hides in Billing/Masters)
+          if (isHomeDashboard)
+            WebRecentSidebar(
+              currentView: currentView,
+              recentShortcuts: recentShortcuts,
+              onHomeTap: () => _navigateToHub("HOME", "MAIN BUSINESS MODULES"),
+              onActionTap: _handleActionTap,
+              onRemoveShortcut: _removeShortcut,
+              onClearAll: _clearAllRecents,
+            ),
 
-          // Main Workspace Area
+          // Main 100% Full-Width Workspace
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
