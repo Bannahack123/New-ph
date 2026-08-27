@@ -1,4 +1,7 @@
+// FILE: lib/web_live_sync/sub_views/web_billing/quick_add_party_modal.dart
+
 import 'package:flutter/material.dart';
+import '../../web_models.dart';
 import '../../pharoah_web_manager.dart';
 
 class QuickAddPartyModal extends StatefulWidget {
@@ -32,13 +35,12 @@ class _QuickAddPartyModalState extends State<QuickAddPartyModal> {
     "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh",
     "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha",
     "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura",
-    "Uttar Pradesh", "Uttarakhand", "West Bengal", "Delhi"
+    "Uttar Pradesh", "Uttarakhand", "West Bengal", "Delhi",
   ];
 
   @override
   void initState() {
     super.initState();
-    // Auto-extract PAN from GSTIN (Same as mobile app logic)
     gstC.addListener(() {
       if (gstC.text.length >= 12) {
         String extPan = gstC.text.substring(2, 12).toUpperCase();
@@ -69,26 +71,25 @@ class _QuickAddPartyModalState extends State<QuickAddPartyModal> {
       return;
     }
 
-    final newPartyMap = {
-      'id': 'WEB-P-${DateTime.now().millisecondsSinceEpoch}',
-      'name': nameC.text.trim().toUpperCase(),
-      'group': selectedGroup,
-      'phone': phoneC.text.trim(),
-      'email': '',
-      'address': addressC.text.trim(),
-      'city': cityC.text.trim().toUpperCase(),
-      'state': selectedState,
-      'gst': gstC.text.trim().toUpperCase().isEmpty ? 'N/A' : gstC.text.trim().toUpperCase(),
-      'pan': panC.text.trim().toUpperCase(),
-      'dl': dlC.text.trim().toUpperCase().isEmpty ? 'N/A' : dlC.text.trim().toUpperCase(),
-      'opBal': 0.0,
-      'creditLimit': 0.0,
-      'creditDays': 30,
-    };
+    final newParty = Party(
+      id: 'PARTY-WEB-${DateTime.now().millisecondsSinceEpoch}',
+      name: nameC.text.trim().toUpperCase(),
+      group: selectedGroup,
+      phone: phoneC.text.trim(),
+      email: '',
+      address: addressC.text.trim(),
+      city: cityC.text.trim().toUpperCase(),
+      state: selectedState,
+      gst: gstC.text.trim().toUpperCase().isEmpty ? 'N/A' : gstC.text.trim().toUpperCase(),
+      pan: panC.text.trim().toUpperCase(),
+      dl: dlC.text.trim().toUpperCase().isEmpty ? 'N/A' : dlC.text.trim().toUpperCase(),
+      opBal: 0.0,
+      creditLimit: 0.0,
+      creditDays: 30,
+    );
 
-    // Save to web manager memory
-    widget.webPh.addParty(newPartyMap);
-    widget.onPartyCreated(newPartyMap);
+    widget.webPh.addParty(newParty);
+    widget.onPartyCreated(newParty.toMap());
     Navigator.pop(context);
   }
 
@@ -104,8 +105,8 @@ class _QuickAddPartyModalState extends State<QuickAddPartyModal> {
         children: [
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF2563EB).withOpacity(0.2),
+            decoration: const BoxDecoration(
+              color: Color(0x332563EB),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.person_add_alt_1_rounded, color: Color(0xFF38BDF8), size: 20),

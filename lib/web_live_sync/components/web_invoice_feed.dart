@@ -1,21 +1,24 @@
+// FILE: lib/web_live_sync/components/web_invoice_feed.dart
+
 import 'package:flutter/material.dart';
+import '../web_models.dart';
 import '../pharoah_web_manager.dart';
+import '../web_pdf_router_service.dart';
+import '../web_app_date_logic.dart';
 
 class WebInvoiceFeed extends StatelessWidget {
   final PharoahWebManager webPh;
-  final Function(Map<String, dynamic> bill)? onViewBill;
-  final Function(Map<String, dynamic> bill)? onPrintBill;
+  final Function(Sale sale)? onViewBill;
 
   const WebInvoiceFeed({
     super.key,
     required this.webPh,
     this.onViewBill,
-    this.onPrintBill,
   });
 
   @override
   Widget build(BuildContext context) {
-    final List<dynamic> salesList = webPh.sales.reversed.toList();
+    final List<Sale> salesList = webPh.sales.reversed.where((s) => s.status == "Active").toList();
     final int displayCount = salesList.length > 10 ? 10 : salesList.length;
 
     return Container(
@@ -88,30 +91,20 @@ class WebInvoiceFeed extends StatelessWidget {
                         _th("ACTIONS"),
                       ],
                     ),
-                    ...List.generate(displayCount, (index) {
-                      final bill = salesList[index] as Map<String, dynamic>;
-                      final String type = (bill['paymentMode'] ?? 'SALE').toString().toUpperCase();
-                      final String billNo = (bill['billNo'] ?? 'N/A').toString();
-                      final String party = (bill['partyName'] ?? 'CASH').toString();
-                      final String date = (bill['date'] != null)
-                          ? bill['date'].toString().substring(0, 10)
-                          : '-';
-                      final double amt = (bill['totalAmount'] as num? ?? 0).toDouble();
-
-                      return TableRow(
+                    for (int i = 0; i < displayCount; i++)
+                      TableRow(
                         decoration: const BoxDecoration(
                           border: Border(bottom: BorderSide(color: Colors.white10)),
                         ),
                         children: [
-                          _tdBadge(type),
-                          _td(billNo, isBold: true),
-                          _td(party, isLeft: true, isBold: true),
-                          _td(date),
-                          _td("₹${amt.toStringAsFixed(2)}", isBold: true, color: Colors.greenAccent),
-                          _tdActions(bill, context),
+                          _tdBadge(salesList[i].paymentMode),
+                          _td(salesList[i].billNo, isBold: true),
+                          _td(salesList[i].partyName, isLeft: true, isBold: true),
+                          _td(WebAppDateLogic.format(salesList[i].date)),
+                          _td("₹${salesList[i].totalAmount.toStringAsFixed(2)}", isBold: true, color: Colors.greenAccent),
+                          _tdActions(salesList[i], context),
                         ],
-                      );
-                    }),
+                      ),
                   ],
                 ),
               ),
@@ -122,34 +115,34 @@ class WebInvoiceFeed extends StatelessWidget {
   }
 
   Widget _th(String text, {bool isLeft = false}) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-    child: Text(
-      text,
-      textAlign: isLeft ? TextAlign.left : TextAlign.center,
-      style: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold),
-    ),
-  );
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        child: Text(
+          text,
+          textAlign: isLeft ? TextAlign.left : TextAlign.center,
+          style: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold),
+        ),
+      );
 
   Widget _td(String text, {bool isLeft = false, bool isBold = false, Color color = Colors.white}) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-    child: Text(
-      text,
-      textAlign: isLeft ? TextAlign.left : TextAlign.center,
-      style: TextStyle(
-        color: color,
-        fontSize: 11,
-        fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-      ),
-      overflow: TextOverflow.ellipsis,
-    ),
-  );
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        child: Text(
+          text,
+          textAlign: isLeft ? TextAlign.left : TextAlign.center,
+          style: TextStyle(
+            color: color,
+            fontSize: 11,
+            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+          ),
+          overflow: TextOverflow.ellipsis,
+        ),
+      );
 
   Widget _tdBadge(String type) {
-    Color bg = Colors.green.withOpacity(0.15);
+    Color bg = const Color(0x2610B981);
     Color fg = Colors.greenAccent;
 
-    if (type.contains("CREDIT")) {
-      bg = Colors.blue.withOpacity(0.15);
+    if (type.toUpperCase().contains("CREDIT")) {
+      bg = const Color(0x263B82F6);
       fg = Colors.blueAccent;
     }
 
@@ -157,39 +150,31 @@ class WebInvoiceFeed extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
-        child: Text(type, style: TextStyle(color: fg, fontSize: 9, fontWeight: FontWeight.w900)),
+        child: Text(type.toUpperCase(), style: TextStyle(color: fg, fontSize: 9, fontWeight: FontWeight.w900)),
       ),
     );
   }
 
-  Widget _tdActions(Map<String, dynamic> bill, BuildContext context) {
+  Widget _tdActions(Sale sale, BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         IconButton(
-          icon: const Icon(Icons.visibility_outlined, size: 16, color: Colors.cyanAccent),
-          tooltip: "View Bill",
-          onPressed: () {
-            if (onViewBill != null) {
-              onViewBill!(bill);
-            } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text("Viewing Bill: ${bill['billNo'] ?? ''}")),
-              );
-            }
-          },
-        ),
-        IconButton(
           icon: const Icon(Icons.print_outlined, size: 16, color: Colors.white70),
           tooltip: "Print PDF",
           onPressed: () {
-            if (onPrintBill != null) {
-              onPrintBill!(bill);
-            } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text("Printing Invoice: ${bill['billNo'] ?? ''}")),
-              );
-            }
+            final partyObj = webPh.parties.firstWhere(
+              (p) => p.name == sale.partyName,
+              orElse: () => Party(id: 'temp', name: sale.partyName, gst: sale.partyGstin, state: sale.partyState),
+            );
+            final shopProfile = CompanyProfile.fromMap(webPh.companyProfile);
+
+            WebPdfRouterService.printSaleInvoice(
+              sale: sale,
+              party: partyObj,
+              shop: shopProfile,
+              config: webPh.appConfig,
+            );
           },
         ),
       ],

@@ -1,4 +1,7 @@
+// FILE: lib/web_live_sync/sub_views/web_billing/quick_add_product_modal.dart
+
 import 'package:flutter/material.dart';
+import '../../web_models.dart';
 import '../../pharoah_web_manager.dart';
 
 class QuickAddProductModal extends StatefulWidget {
@@ -60,28 +63,28 @@ class _QuickAddProductModalState extends State<QuickAddProductModal> {
 
     String sysId = "PH-W-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}";
 
-    final newMedMap = {
-      'id': sysId,
-      'systemId': sysId,
-      'name': nameC.text.trim().toUpperCase(),
-      'packing': packC.text.trim().toUpperCase(),
-      'hsnCode': hsnC.text.trim().toUpperCase().isEmpty ? '3004' : hsnC.text.trim().toUpperCase(),
-      'drugForm': selectedForm,
-      'gst': gst,
-      'mrp': mrp,
-      'purRate': pur,
-      'rateA': a > 0 ? a : mrp,
-      'rateB': b,
-      'rateC': a > 0 ? a * 0.92 : 0.0,
-      'stock': 0.0,
-      'isNarcotic': isNarcotic,
-      'isScheduleH1': isScheduleH1,
-      'companyId': '',
-      'saltId': '',
-    };
+    final newMed = Medicine(
+      id: sysId,
+      systemId: sysId,
+      name: nameC.text.trim().toUpperCase(),
+      packing: packC.text.trim().toUpperCase(),
+      hsnCode: hsnC.text.trim().toUpperCase().isEmpty ? '3004' : hsnC.text.trim().toUpperCase(),
+      drugForm: selectedForm,
+      gst: gst,
+      mrp: mrp,
+      purRate: pur,
+      rateA: a > 0 ? a : mrp,
+      rateB: b,
+      rateC: a > 0 ? a * 0.92 : 0.0,
+      stock: 0.0,
+      isNarcotic: isNarcotic,
+      isScheduleH1: isScheduleH1,
+      companyId: '',
+      saltId: '',
+    );
 
-    widget.webPh.addMedicine(newMedMap);
-    widget.onProductCreated(newMedMap);
+    widget.webPh.addMedicine(newMed);
+    widget.onProductCreated(newMed.toMap());
     Navigator.pop(context);
   }
 
@@ -97,8 +100,8 @@ class _QuickAddProductModalState extends State<QuickAddProductModal> {
         children: [
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF7C3AED).withOpacity(0.2),
+            decoration: const BoxDecoration(
+              color: Color(0x337C3AED),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.add_box_rounded, color: Color(0xFFA78BFA), size: 20),

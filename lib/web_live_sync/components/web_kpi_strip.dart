@@ -1,3 +1,5 @@
+// FILE: lib/web_live_sync/components/web_kpi_strip.dart
+
 import 'package:flutter/material.dart';
 import '../pharoah_web_manager.dart';
 
@@ -9,14 +11,12 @@ class WebKpiStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    String todayStr = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
 
     double todaySales = 0.0;
     int todaySalesCount = 0;
     for (var s in webPh.sales) {
-      String sDate = (s['date'] ?? '').toString();
-      if (sDate.startsWith(todayStr) || sDate.contains(todayStr)) {
-        todaySales += (s['totalAmount'] as num? ?? 0).toDouble();
+      if (s.date.year == now.year && s.date.month == now.month && s.date.day == now.day && s.status == "Active") {
+        todaySales += s.totalAmount;
         todaySalesCount++;
       }
     }
@@ -24,26 +24,22 @@ class WebKpiStrip extends StatelessWidget {
     double todayPurchases = 0.0;
     int todayPurCount = 0;
     for (var p in webPh.purchases) {
-      String pDate = (p['date'] ?? '').toString();
-      if (pDate.startsWith(todayStr) || pDate.contains(todayStr)) {
-        todayPurchases += (p['totalAmount'] as num? ?? 0).toDouble();
+      if (p.date.year == now.year && p.date.month == now.month && p.date.day == now.day) {
+        todayPurchases += p.totalAmount;
         todayPurCount++;
       }
     }
 
     double totalStockVal = 0.0;
     for (var m in webPh.medicines) {
-      double stock = (m['stock'] as num? ?? 0).toDouble();
-      double purRate = (m['purRate'] as num? ?? (m['rate'] as num? ?? 0)).toDouble();
-      totalStockVal += (stock * purRate);
+      totalStockVal += (m.stock * m.purRate);
     }
 
     double totalOutstanding = 0.0;
     int debtorsCount = 0;
     for (var p in webPh.parties) {
-      double bal = (p['opBal'] as num? ?? 0).toDouble();
-      if (bal > 0) {
-        totalOutstanding += bal;
+      if (p.opBal > 0 && p.group == "Sundry Debtors") {
+        totalOutstanding += p.opBal;
         debtorsCount++;
       }
     }
@@ -73,8 +69,8 @@ class WebKpiStrip extends StatelessWidget {
     );
   }
 
-  double _totalSales(PharoahWebManager ph) => ph.sales.fold(0.0, (sum, s) => sum + (s['totalAmount'] as num? ?? 0).toDouble());
-  double _totalPur(PharoahWebManager ph) => ph.purchases.fold(0.0, (sum, p) => sum + (p['totalAmount'] as num? ?? 0).toDouble());
+  double _totalSales(PharoahWebManager ph) => ph.sales.where((s) => s.status == "Active").fold(0.0, (sum, s) => sum + s.totalAmount);
+  double _totalPur(PharoahWebManager ph) => ph.purchases.fold(0.0, (sum, p) => sum + p.totalAmount);
 
   Widget _kpiCard(String title, String value, String sub, IconData icon, Color color) {
     return Container(
@@ -86,12 +82,12 @@ class WebKpiStrip extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.35), width: 1.2),
-        boxShadow: [
+        border: Border.all(color: color.withAlpha(90), width: 1.2),
+        boxShadow: const [
           BoxShadow(
-            color: color.withOpacity(0.06),
+            color: Colors.black26,
             blurRadius: 12,
-            offset: const Offset(0, 4),
+            offset: Offset(0, 4),
           )
         ],
       ),

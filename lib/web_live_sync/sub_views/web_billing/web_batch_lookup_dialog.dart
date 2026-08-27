@@ -1,6 +1,8 @@
+// FILE: lib/web_live_sync/sub_views/web_billing/web_batch_lookup_dialog.dart
+
 import 'package:flutter/material.dart';
-import '../../../models.dart';
-import '../../../expiry_master.dart';
+import '../../web_models.dart';
+import '../../web_expiry_master.dart';
 
 class WebBatchLookupDialog extends StatefulWidget {
   final Medicine medicine;
@@ -36,7 +38,6 @@ class _WebBatchLookupDialogState extends State<WebBatchLookupDialog> {
   Widget build(BuildContext context) {
     final sortedBatches = List<BatchInfo>.from(widget.batches);
 
-    // FIFO / Expiry sorting
     sortedBatches.sort((a, b) => _parseExpiry(a.exp).compareTo(_parseExpiry(b.exp)));
 
     double grandTotalQty = widget.batches.fold(0.0, (sum, b) => sum + b.qty);
@@ -51,8 +52,8 @@ class _WebBatchLookupDialogState extends State<WebBatchLookupDialog> {
         children: [
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.cyanAccent.withOpacity(0.15),
+            decoration: const BoxDecoration(
+              color: Color(0x2622D3EE),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.layers_rounded, color: Colors.cyanAccent, size: 20),
@@ -85,15 +86,14 @@ class _WebBatchLookupDialogState extends State<WebBatchLookupDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Table Header
             Container(
               padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
               decoration: BoxDecoration(
                 color: const Color(0xFF0F172A),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Row(
-                children: const [
+              child: const Row(
+                children: [
                   Expanded(flex: 3, child: Text("BATCH NO", style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold))),
                   Expanded(flex: 2, child: Text("EXPIRY", style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold))),
                   Expanded(flex: 2, child: Text("MRP", textAlign: TextAlign.right, style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold))),
@@ -103,8 +103,6 @@ class _WebBatchLookupDialogState extends State<WebBatchLookupDialog> {
               ),
             ),
             const SizedBox(height: 8),
-
-            // Batches List
             Flexible(
               child: sortedBatches.isEmpty
                   ? const Padding(
@@ -120,8 +118,8 @@ class _WebBatchLookupDialogState extends State<WebBatchLookupDialog> {
                       itemCount: sortedBatches.length,
                       itemBuilder: (context, idx) {
                         final b = sortedBatches[idx];
-                        final status = ExpiryMaster.getStatus(b.exp);
-                        final statusColor = ExpiryMaster.getStatusColor(b.exp);
+                        final status = WebExpiryMaster.getStatus(b.exp);
+                        final statusColor = WebExpiryMaster.getStatusColor(b.exp);
                         String statusLabel = "Safe";
                         if (status == ExpiryStatus.expired) statusLabel = "Expired";
                         if (status == ExpiryStatus.nearExpiry) statusLabel = "Near Exp";
@@ -131,7 +129,7 @@ class _WebBatchLookupDialogState extends State<WebBatchLookupDialog> {
                           decoration: BoxDecoration(
                             color: Colors.black26,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.white.withOpacity(0.05)),
+                            border: Border.all(color: const Color(0x0DFFFFFF)),
                           ),
                           child: ListTile(
                             dense: true,
@@ -151,7 +149,7 @@ class _WebBatchLookupDialogState extends State<WebBatchLookupDialog> {
                                       const SizedBox(width: 4),
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                        decoration: BoxDecoration(color: statusColor.withOpacity(0.15), borderRadius: BorderRadius.circular(4)),
+                                        decoration: BoxDecoration(color: statusColor == Colors.green ? const Color(0x2610B981) : (statusColor == Colors.red ? const Color(0x26DC2626) : const Color(0x26F59E0B)), borderRadius: BorderRadius.circular(4)),
                                         child: Text(statusLabel, style: TextStyle(color: statusColor, fontSize: 7, fontWeight: FontWeight.bold)),
                                       ),
                                     ],
@@ -177,8 +175,6 @@ class _WebBatchLookupDialogState extends State<WebBatchLookupDialog> {
                     ),
             ),
             const SizedBox(height: 15),
-
-            // Bottom Summary & Manual Fallback
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(

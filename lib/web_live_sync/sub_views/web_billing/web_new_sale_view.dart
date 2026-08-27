@@ -1,15 +1,13 @@
-import 'dart:convert';
+// FILE: lib/web_live_sync/sub_views/web_billing/web_new_sale_view.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../models.dart';
-import '../../../gateway/company_registry_model.dart';
-import '../../../pdf/sale_invoice_pdf.dart';
+import '../../web_models.dart';
 import '../../pharoah_web_manager.dart';
-import '../../web_cloud_config.dart';
+import '../../web_app_date_logic.dart';
 import 'web_item_entry_card.dart';
 import 'quick_add_party_modal.dart';
 import 'quick_add_product_modal.dart';
-import 'package:http/http.dart' as http;
 
 class WebNewSaleView extends StatefulWidget {
   final VoidCallback onBack;
@@ -26,7 +24,7 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
   DateTime billDate = DateTime.now();
   String paymentMode = "CASH";
 
-  Map<String, dynamic>? selectedParty;
+  Party? selectedParty;
   List<BillItem> billItems = [];
   bool isSaving = false;
 
@@ -34,8 +32,8 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
   void initState() {
     super.initState();
     final webPh = Provider.of<PharoahWebManager>(context, listen: false);
-    int nextNum = webPh.sales.length + 101;
-    billNoC.text = "INV-$nextNum";
+    billNoC.text = webPh.getNextBillNumber("SALE", "INV-", 101);
+    billDate = WebAppDateLogic.getSmartDate(webPh.financialYear);
   }
 
   @override
@@ -48,9 +46,8 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
   void _openItemEntry(Medicine med, {BillItem? itemToEdit, int? editIndex}) {
     final webPh = Provider.of<PharoahWebManager>(context, listen: false);
     String shopState = (webPh.companyProfile['state'] ?? 'Rajasthan').toString();
-    String partyState = (selectedParty != null ? (selectedParty!['state'] ?? 'Rajasthan') : 'Rajasthan').toString();
+    String partyState = selectedParty?.state ?? 'Rajasthan';
 
-    // Extract actual live batches for this medicine from batchHistory
     List<BatchInfo> batches = webPh.batchHistory[med.identityKey] ?? [];
 
     showDialog(
@@ -83,9 +80,10 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
       context: context,
       builder: (c) => QuickAddPartyModal(
         webPh: webPh,
-        onPartyCreated: (newParty) {
+        onPartyCreated: (newPartyMap) {
+          final pObj = Party.fromMap(newPartyMap);
           setState(() {
-            selectedParty = newParty;
+            selectedParty = pObj;
           });
         },
       ),
@@ -105,7 +103,7 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
     );
   }
 
-  // --- TOTAL CALCULATIONS ---
+  // Calculations
   double get subTotal => billItems.fold(0.0, (sum, it) => sum + it.total);
   double get totalTaxable => billItems.fold(0.0, (sum, it) => sum + (it.qty * it.rate - it.discountRupees));
   double get totalCGST => billItems.fold(0.0, (sum, it) => sum + it.cgst);
@@ -116,88 +114,49 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
   double get finalGrandTotal => rawGrandTotal.roundToDouble();
   double get roundOff => double.parse((finalGrandTotal - rawGrandTotal).toStringAsFixed(2));
 
-  Future<void> _saveInvoice(PharoahWebManager webPh, {bool andPrint = false}) async {
+  void _saveInvoice(PharoahWebManager webPh) {
     if (billItems.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Cannot save empty bill! Please add products.")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Cannot save empty bill! Please add products."), backgroundColor: Colors.orange),
+      );
       return;
     }
 
     setState(() => isSaving = true);
 
-    String pName = selectedParty != null ? (selectedParty!['name'] ?? "CASH").toString() : "CASH";
-    String pGst = selectedParty != null ? (selectedParty!['gst'] ?? "N/A").toString() : "N/A";
-    String pState = selectedParty != null ? (selectedParty!['state'] ?? "Rajasthan").toString() : "Rajasthan";
+    final Party activeParty = selectedParty ?? Party(id: 'cash', name: 'CASH', group: 'Cash in Hand');
 
-    final newSaleMap = {
-      'id': 'WEB-S-${DateTime.now().millisecondsSinceEpoch}',
-      'billNo': billNoC.text.trim(),
-      'partyId': selectedParty != null ? (selectedParty!['id'] ?? 'cash') : 'cash',
-      'partyName': pName,
-      'partyGstin': pGst,
-      'partyState': pState,
-      'date': billDate.toIso8601String(),
-      'paymentMode': paymentMode,
-      'totalAmount': finalGrandTotal,
-      'extraDiscount': extraDiscount,
-      'roundOff': roundOff,
-      'status': 'Active',
-      'items': billItems.map((i) => i.toMap()).toList(),
-      'sourceTag': 'WEB-PORTAL',
-    };
+    final newSale = Sale(
+      id: "SALE-WEB-${DateTime.now().millisecondsSinceEpoch}",
+      billNo: billNoC.text.trim(),
+      partyId: activeParty.id,
+      partyName: activeParty.name,
+      partyGstin: activeParty.gst,
+      partyState: activeParty.state,
+      date: billDate,
+      paymentMode: paymentMode,
+      totalAmount: finalGrandTotal,
+      extraDiscount: extraDiscount,
+      roundOff: roundOff,
+      status: "Active",
+      items: List.from(billItems),
+      sourceTag: "WEB-PORTAL",
+      partyAddress: activeParty.address,
+      partyCity: activeParty.city,
+      partyPhone: activeParty.phone,
+      partyEmail: activeParty.email,
+      partyDl: activeParty.dl,
+      partyPan: activeParty.pan,
+    );
 
-    // 1. Update in Web Memory
-    webPh.addSaleAndSync(newSaleMap);
-
-    // 2. Push Updated Database to Cloud Relay
-    try {
-      final payload = {
-        "action": WebCloudConfig.actionPushStore,
-        "storeToken": webPh.activeStoreToken,
-        "companyId": webPh.companyProfile['id'] ?? 'STORE',
-        "companyName": webPh.companyName,
-        "adminUser": webPh.activeUsername,
-        "adminPassword": webPh.activePassword,
-        "fy": webPh.financialYear,
-        "registryProfile": webPh.companyProfile,
-        "files": {
-          "sales.json": jsonEncode(webPh.sales),
-          "meds.json": jsonEncode(webPh.medicines),
-          "parts.json": jsonEncode(webPh.parties),
-          "purc.json": jsonEncode(webPh.purchases),
-          "vouc.json": jsonEncode(webPh.vouchers),
-          "s_challan.json": jsonEncode(webPh.saleChallans),
-          "p_challan.json": jsonEncode(webPh.purchaseChallans),
-          "s_return.json": jsonEncode(webPh.saleReturns),
-          "p_return.json": jsonEncode(webPh.purchaseReturns),
-        },
-        "syncedAt": DateTime.now().toIso8601String(),
-      };
-
-      await http.post(
-        Uri.parse(WebCloudConfig.cloudRelayEndpoint),
-        headers: WebCloudConfig.standardHeaders,
-        body: jsonEncode(payload),
-      ).timeout(const Duration(seconds: 25));
-    } catch (e) {
-      debugPrint("Web Sync Push Error: $e");
-    }
-
+    webPh.addSaleAndSync(newSale);
     setState(() => isSaving = false);
 
-    // 3. Print if requested
-    if (andPrint) {
-      final saleObj = Sale.fromMap(newSaleMap);
-      final partyObj = selectedParty != null ? Party.fromMap(selectedParty!) : Party(id: 'cash', name: 'CASH');
-      final shopProfile = CompanyProfile.fromMap(webPh.companyProfile);
-      await SaleInvoicePdf.generate(saleObj, partyObj, shopProfile);
-    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("✅ Invoice ${billNoC.text} Saved & Stock Updated!"), backgroundColor: Colors.green),
+    );
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("✅ Invoice ${billNoC.text} Saved & Synced Live!"), backgroundColor: Colors.green),
-      );
-      widget.onBack();
-    }
+    widget.onBack();
   }
 
   @override
@@ -207,15 +166,11 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // --- TOP CONTROLS BAR ---
         _buildHeaderBar(webPh),
         const SizedBox(height: 18),
-
-        // --- TWO-COLUMN WORKSTATION LAYOUT ---
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Left (70%): Product Search & Cart Table
             Expanded(
               flex: 7,
               child: Column(
@@ -227,8 +182,6 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
               ),
             ),
             const SizedBox(width: 18),
-
-            // Right (30%): Customer Box & Grand Total Summary
             Expanded(
               flex: 3,
               child: Column(
@@ -265,7 +218,7 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
             ),
             onPressed: widget.onBack,
             icon: const Icon(Icons.arrow_back_rounded, size: 16),
-            label: const Text("BACK TO MODULES", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+            label: const Text("BACK", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
           ),
           const SizedBox(width: 18),
           const Icon(Icons.receipt_long_rounded, color: Color(0xFF38BDF8), size: 22),
@@ -275,8 +228,6 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
             style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900, letterSpacing: 0.5),
           ),
           const Spacer(),
-
-          // Bill Number
           SizedBox(
             width: 130,
             height: 36,
@@ -294,8 +245,6 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
             ),
           ),
           const SizedBox(width: 12),
-
-          // Cash / Credit Segment
           SegmentedButton<String>(
             segments: const [
               ButtonSegment(value: 'CASH', label: Text('CASH', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
@@ -315,23 +264,20 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF2563EB).withOpacity(0.4), width: 1.2),
+        border: Border.all(color: const Color(0x662563EB), width: 1.2),
       ),
       child: Row(
         children: [
-          // Product Autocomplete Field
           Expanded(
-            child: Autocomplete<Map<String, dynamic>>(
-              displayStringForOption: (option) => "${option['name']} (${option['packing']})",
+            child: Autocomplete<Medicine>(
+              displayStringForOption: (m) => "${m.name} (${m.packing}) - Stock: ${m.stock.toInt()}",
               optionsBuilder: (textEditingValue) {
                 if (textEditingValue.text.isEmpty) return const Iterable.empty();
                 return webPh.medicines.where((m) =>
-                    (m['name'] ?? '').toString().toLowerCase().contains(textEditingValue.text.toLowerCase())).cast<Map<String, dynamic>>();
+                    m.name.toLowerCase().contains(textEditingValue.text.toLowerCase()) ||
+                    m.systemId.toLowerCase().contains(textEditingValue.text.toLowerCase()));
               },
-              onSelected: (medMap) {
-                final medObj = Medicine.fromMap(medMap);
-                _openItemEntry(medObj);
-              },
+              onSelected: (med) => _openItemEntry(med),
               fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
                 return TextField(
                   controller: controller,
@@ -353,8 +299,6 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
             ),
           ),
           const SizedBox(width: 12),
-
-          // Quick Add Product Button
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF7C3AED),
@@ -400,7 +344,6 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
             ],
           ),
           const Divider(color: Colors.white10, height: 20),
-
           if (billItems.isEmpty)
             const Center(
               child: Padding(
@@ -460,27 +403,27 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
                           _td("${it.gstRate.toInt()}%"),
                           _td("₹${it.total.toStringAsFixed(2)}", isBold: true, color: Colors.greenAccent),
                           Row(
-                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               IconButton(
                                 icon: const Icon(Icons.edit_note_rounded, size: 16, color: Color(0xFF38BDF8)),
                                 onPressed: () {
-                                  final medMap = webPh.medicines.firstWhere(
-                                    (m) => m['id'] == it.medicineID || m['name'] == it.name,
-                                    orElse: () => {'name': it.name, 'packing': it.packing},
+                                  final med = webPh.medicines.firstWhere(
+                                    (m) => m.id == it.medicineID || m.name == it.name,
+                                    orElse: () => Medicine(id: it.medicineID, name: it.name, packing: it.packing),
                                   );
-                                  _openItemEntry(Medicine.fromMap(medMap), itemToEdit: it, editIndex: idx);
+                                  _openItemEntry(med, itemToEdit: it, editIndex: idx);
                                 },
                               ),
                               IconButton(
-                                icon: const Icon(Icons.delete_outline, size: 16, color: Colors.redAccent),
+                                icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Colors.redAccent),
                                 onPressed: () => setState(() => billItems.removeAt(idx)),
                               ),
                             ],
                           ),
                         ],
                       );
-                    }).toList(),
+                    }),
                   ],
                 ),
               ),
@@ -514,8 +457,8 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: const [
+              const Row(
+                children: [
                   Icon(Icons.person_rounded, color: Color(0xFF38BDF8), size: 18),
                   SizedBox(width: 8),
                   Text("CUSTOMER / CONSIGNEE", style: TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
@@ -536,20 +479,23 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
             ],
           ),
           const Divider(color: Colors.white10, height: 20),
-
           if (selectedParty != null)
             Container(
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFF2563EB).withOpacity(0.4))),
+              decoration: BoxDecoration(
+                color: Colors.black26,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0x662563EB)),
+              ),
               child: Row(
                 children: [
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text((selectedParty!['name'] ?? '').toString().toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 13)),
+                        Text(selectedParty!.name.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 13)),
                         const SizedBox(height: 3),
-                        Text("GST: ${selectedParty!['gst'] ?? 'N/A'} | State: ${selectedParty!['state'] ?? 'Rajasthan'}", style: const TextStyle(color: Colors.white54, fontSize: 10)),
+                        Text("GST: ${selectedParty!.gst} | State: ${selectedParty!.state}", style: const TextStyle(color: Colors.white54, fontSize: 10)),
                       ],
                     ),
                   ),
@@ -561,14 +507,15 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
               ),
             )
           else
-            Autocomplete<Map<String, dynamic>>(
-              displayStringForOption: (option) => (option['name'] ?? '').toString(),
+            Autocomplete<Party>(
+              displayStringForOption: (p) => "${p.name} (${p.city})",
               optionsBuilder: (textEditingValue) {
                 if (textEditingValue.text.isEmpty) return const Iterable.empty();
                 return webPh.parties.where((p) =>
-                    (p['name'] ?? '').toString().toLowerCase().contains(textEditingValue.text.toLowerCase())).cast<Map<String, dynamic>>();
+                    p.name.toLowerCase().contains(textEditingValue.text.toLowerCase()) ||
+                    p.city.toLowerCase().contains(textEditingValue.text.toLowerCase()));
               },
-              onSelected: (party) => setState(() => selectedParty = party),
+              onSelected: (p) => setState(() => selectedParty = p),
               fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
                 return TextField(
                   controller: controller,
@@ -601,7 +548,7 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF2563EB).withOpacity(0.4), width: 1.2),
+        border: Border.all(color: const Color(0x662563EB), width: 1.2),
         boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 15, offset: Offset(0, 5))],
       ),
       child: Column(
@@ -609,12 +556,10 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
         children: [
           const Text("BILL CALCULATION SUMMARY", style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
           const Divider(color: Colors.white10, height: 20),
-
           _sumRow("Items Taxable Value", "₹${totalTaxable.toStringAsFixed(2)}"),
           if (totalCGST > 0) _sumRow("Total CGST (+)", "₹${totalCGST.toStringAsFixed(2)}"),
           if (totalSGST > 0) _sumRow("Total SGST (+)", "₹${totalSGST.toStringAsFixed(2)}"),
           if (totalIGST > 0) _sumRow("Total IGST (+)", "₹${totalIGST.toStringAsFixed(2)}"),
-
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -639,10 +584,8 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
               ),
             ],
           ),
-
           _sumRow("Auto Round Off", "₹${roundOff.toStringAsFixed(2)}"),
           const Divider(color: Colors.white24, height: 25),
-
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -654,8 +597,6 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
             ],
           ),
           const SizedBox(height: 25),
-
-          // Save Only Button
           SizedBox(
             width: double.infinity,
             height: 46,
@@ -666,7 +607,7 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 elevation: 0,
               ),
-              onPressed: isSaving ? null : () => _saveInvoice(webPh, andPrint: false),
+              onPressed: isSaving ? null : () => _saveInvoice(webPh),
               icon: isSaving
                   ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.check_circle_rounded, size: 18),
@@ -674,23 +615,6 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
                 isSaving ? "SAVING..." : "SAVE & SYNC INVOICE",
                 style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 11.5, letterSpacing: 0.5),
               ),
-            ),
-          ),
-          const SizedBox(height: 10),
-
-          // Save & Print Button
-          SizedBox(
-            width: double.infinity,
-            height: 42,
-            child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF38BDF8),
-                side: const BorderSide(color: Color(0xFF38BDF8), width: 1.2),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              onPressed: isSaving ? null : () => _saveInvoice(webPh, andPrint: true),
-              icon: const Icon(Icons.print_rounded, size: 16),
-              label: const Text("SAVE & PRINT INVOICE", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
             ),
           ),
         ],

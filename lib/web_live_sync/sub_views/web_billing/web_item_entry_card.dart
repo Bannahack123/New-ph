@@ -1,7 +1,9 @@
+// FILE: lib/web_live_sync/sub_views/web_billing/web_item_entry_card.dart
+
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import '../../../models.dart';
-import '../../../expiry_master.dart';
+import '../../web_models.dart';
+import '../../web_expiry_master.dart';
 import 'web_batch_lookup_dialog.dart';
 
 class WebItemEntryCard extends StatefulWidget {
@@ -185,9 +187,9 @@ class _WebItemEntryCardState extends State<WebItemEntryCard> {
   Widget build(BuildContext context) {
     final totals = _calcTotals();
     String expStr = expC.text.trim();
-    final expStatus = ExpiryMaster.getStatus(expStr);
-    final statusColor = ExpiryMaster.getStatusColor(expStr);
-    final bool isSaleAllowed = widget.allowExpired || ExpiryMaster.isSaleAllowed(expStr);
+    final expStatus = WebExpiryMaster.getStatus(expStr);
+    final statusColor = WebExpiryMaster.getStatusColor(expStr);
+    final bool isSaleAllowed = widget.allowExpired || WebExpiryMaster.isSaleAllowed(expStr);
 
     return BackdropFilter(
       filter: ImageFilter.blur(sigmaX: 6.0, sigmaY: 6.0),
@@ -195,11 +197,11 @@ class _WebItemEntryCardState extends State<WebItemEntryCard> {
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         child: Container(
-          width: 720, // Spacious Landscape dialog for Web & iPad
+          width: 720,
           decoration: BoxDecoration(
             color: const Color(0xFF1E293B),
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xFF2563EB).withOpacity(0.5), width: 1.5),
+            border: Border.all(color: const Color(0x802563EB), width: 1.5),
             boxShadow: const [
               BoxShadow(color: Colors.black54, blurRadius: 30, offset: Offset(0, 12))
             ],
@@ -207,7 +209,6 @@ class _WebItemEntryCardState extends State<WebItemEntryCard> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Header
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
                 decoration: const BoxDecoration(
@@ -222,8 +223,8 @@ class _WebItemEntryCardState extends State<WebItemEntryCard> {
                   children: [
                     Container(
                       padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF2563EB).withOpacity(0.2),
+                      decoration: const BoxDecoration(
+                        color: Color(0x332563EB),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.medication_rounded, color: Color(0xFF38BDF8), size: 22),
@@ -263,15 +264,12 @@ class _WebItemEntryCardState extends State<WebItemEntryCard> {
                   ],
                 ),
               ),
-
-              // Inputs Form
               Flexible(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Row 1: Batch & Expiry
                       Row(
                         children: [
                           Expanded(
@@ -308,8 +306,6 @@ class _WebItemEntryCardState extends State<WebItemEntryCard> {
                         ],
                       ),
                       const SizedBox(height: 18),
-
-                      // Rate Type Segment Selector
                       Row(
                         children: [
                           const Text("APPLY RATE LEVEL:", style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
@@ -328,8 +324,6 @@ class _WebItemEntryCardState extends State<WebItemEntryCard> {
                         ],
                       ),
                       const SizedBox(height: 18),
-
-                      // Prices & Formulas Row
                       Row(
                         children: [
                           if (selectedRateType == "C") ...[
@@ -352,8 +346,6 @@ class _WebItemEntryCardState extends State<WebItemEntryCard> {
                         ],
                       ),
                       const SizedBox(height: 18),
-
-                      // Qty, Free & Discount
                       Row(
                         children: [
                           Expanded(
@@ -374,8 +366,6 @@ class _WebItemEntryCardState extends State<WebItemEntryCard> {
                         ],
                       ),
                       const SizedBox(height: 22),
-
-                      // Net Calculation Box
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                         decoration: BoxDecoration(
@@ -416,8 +406,6 @@ class _WebItemEntryCardState extends State<WebItemEntryCard> {
                         ),
                       ),
                       const SizedBox(height: 22),
-
-                      // Submit Button
                       SizedBox(
                         width: double.infinity,
                         height: 50,
@@ -497,7 +485,7 @@ class _WebItemEntryCardState extends State<WebItemEntryCard> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           decoration: BoxDecoration(
-            color: isReadOnly ? Colors.black38 : (isHighlight ? const Color(0xFF2563EB).withOpacity(0.18) : Colors.black26),
+            color: isReadOnly ? Colors.black38 : (isHighlight ? const Color(0x332563EB) : Colors.black26),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: isHighlight ? const Color(0xFF38BDF8) : Colors.white12),
           ),

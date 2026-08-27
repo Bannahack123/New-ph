@@ -1,3 +1,5 @@
+// FILE: lib/web_live_sync/components/web_module_grid.dart
+
 import 'package:flutter/material.dart';
 import '../web_modules_registry.dart';
 
@@ -24,11 +26,8 @@ class WebModuleGrid extends StatelessWidget {
     }
   }
 
-  // =========================================================================
-  // LEVEL 0: PREMIUM OBSIDIAN 8 HUBS GRID
-  // =========================================================================
   Widget _buildLevel0HubsGrid(BuildContext context) {
-    final hubs = WebModulesRegistry.allHubs;
+    const hubs = WebModulesRegistry.allHubs;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -42,7 +41,7 @@ class WebModuleGrid extends StatelessWidget {
             crossAxisCount: crossAxisCount,
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
-            childAspectRatio: 1.35, // Perfectly balanced card proportion
+            childAspectRatio: 1.35,
           ),
           itemBuilder: (context, index) {
             final hub = hubs[index];
@@ -60,10 +59,10 @@ class WebModuleGrid extends StatelessWidget {
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: color.withOpacity(0.35), width: 1.2),
+                  border: Border.all(color: color.withAlpha(90), width: 1.2),
                   boxShadow: [
                     BoxShadow(
-                      color: color.withOpacity(0.08),
+                      color: color.withAlpha(20),
                       blurRadius: 16,
                       offset: const Offset(0, 4),
                     )
@@ -73,15 +72,14 @@ class WebModuleGrid extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Top Row: Icon + Title + Arrow
                     Row(
                       children: [
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: color.withOpacity(0.18),
+                            color: color.withAlpha(45),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: color.withOpacity(0.4)),
+                            border: Border.all(color: color.withAlpha(100)),
                           ),
                           child: Icon(hub.icon, color: color, size: 22),
                         ),
@@ -99,19 +97,15 @@ class WebModuleGrid extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        Icon(Icons.arrow_forward_rounded, color: color.withOpacity(0.8), size: 16),
+                        Icon(Icons.arrow_forward_rounded, color: color.withAlpha(200), size: 16),
                       ],
                     ),
-
-                    // Middle: Subtitle
                     Text(
                       hub.subtitle,
                       style: const TextStyle(color: Colors.white60, fontSize: 10.5, height: 1.3),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-
-                    // Bottom: Feature Chips (No empty dead space!)
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
@@ -149,9 +143,6 @@ class WebModuleGrid extends StatelessWidget {
     );
   }
 
-  // =========================================================================
-  // LEVEL 1: DRILLDOWN WITH CLEAN HEADER & SLEEK CARDS
-  // =========================================================================
   Widget _buildLevel1SubActionsGrid(BuildContext context) {
     final currentHub = WebModulesRegistry.allHubs.firstWhere(
       (h) => h.id == currentView,
@@ -161,7 +152,6 @@ class WebModuleGrid extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Top Back Header Bar
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
           decoration: BoxDecoration(
@@ -189,7 +179,7 @@ class WebModuleGrid extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: currentHub.color.withOpacity(0.2),
+                  color: currentHub.color.withAlpha(50),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(currentHub.icon, color: currentHub.color, size: 20),
@@ -217,8 +207,6 @@ class WebModuleGrid extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 20),
-
-        // Sub-Actions Cards Grid
         LayoutBuilder(
           builder: (context, constraints) {
             int crossAxisCount = constraints.maxWidth > 950 ? 3 : (constraints.maxWidth > 600 ? 2 : 1);
@@ -249,12 +237,12 @@ class WebModuleGrid extends StatelessWidget {
                         end: Alignment.bottomRight,
                       ),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: color.withOpacity(0.4), width: 1.2),
-                      boxShadow: [
+                      border: Border.all(color: color.withAlpha(100), width: 1.2),
+                      boxShadow: const [
                         BoxShadow(
                           color: Colors.black38,
                           blurRadius: 8,
-                          offset: const Offset(0, 3),
+                          offset: Offset(0, 3),
                         )
                       ],
                     ),
@@ -263,9 +251,9 @@ class WebModuleGrid extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: color.withOpacity(0.18),
+                            color: color.withAlpha(45),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: color.withOpacity(0.35)),
+                            border: Border.all(color: color.withAlpha(90)),
                           ),
                           child: Icon(act.icon, color: color, size: 22),
                         ),

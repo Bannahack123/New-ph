@@ -1,3 +1,5 @@
+// FILE: lib/web_live_sync/components/web_top_bar.dart
+
 import 'package:flutter/material.dart';
 import '../pharoah_web_manager.dart';
 
@@ -20,23 +22,20 @@ class WebTopBar extends StatelessWidget implements PreferredSizeWidget {
       height: 60,
       padding: const EdgeInsets.symmetric(horizontal: 20),
       decoration: const BoxDecoration(
-        color: Color(0xFF0F172A), // Executive Deep Navy Black
+        color: Color(0xFF0F172A),
         border: Border(bottom: BorderSide(color: Colors.white10)),
       ),
       child: Row(
         children: [
-          // Store Icon Badge
           Container(
             padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(
-              color: const Color(0xFF2563EB).withOpacity(0.2),
+              color: const Color(0x332563EB),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(Icons.storefront_rounded, color: Color(0xFF38BDF8), size: 20),
           ),
           const SizedBox(width: 12),
-
-          // Store Name & FY
           Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -61,8 +60,6 @@ class WebTopBar extends StatelessWidget implements PreferredSizeWidget {
             ],
           ),
           const SizedBox(width: 25),
-
-          // Global Search Bar
           Expanded(
             child: Container(
               height: 36,
@@ -86,17 +83,15 @@ class WebTopBar extends StatelessWidget implements PreferredSizeWidget {
             ),
           ),
           const SizedBox(width: 16),
-
-          // Live Cloud Status
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.green.withOpacity(0.12),
+              color: const Color(0x1F10B981),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.greenAccent.withOpacity(0.3)),
+              border: Border.all(color: const Color(0x4D10B981)),
             ),
-            child: Row(
-              children: const [
+            child: const Row(
+              children: [
                 Icon(Icons.circle, color: Colors.greenAccent, size: 7),
                 SizedBox(width: 6),
                 Text(
@@ -112,8 +107,6 @@ class WebTopBar extends StatelessWidget implements PreferredSizeWidget {
             ),
           ),
           const SizedBox(width: 12),
-
-          // Refresh Button
           IconButton(
             icon: const Icon(Icons.sync_rounded, color: Colors.white70, size: 20),
             tooltip: "Refresh Live Data",
@@ -127,8 +120,6 @@ class WebTopBar extends StatelessWidget implements PreferredSizeWidget {
               );
             },
           ),
-
-          // Logout Button
           IconButton(
             icon: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 20),
             tooltip: "Sign Out",

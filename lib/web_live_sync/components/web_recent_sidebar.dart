@@ -1,3 +1,5 @@
+// FILE: lib/web_live_sync/components/web_recent_sidebar.dart
+
 import 'package:flutter/material.dart';
 
 class WebRecentSidebar extends StatelessWidget {
@@ -30,8 +32,6 @@ class WebRecentSidebar extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 15),
-
-          // Main Dashboard Button (Royal Blue Active Pill)
           InkWell(
             onTap: onHomeTap,
             child: Container(
@@ -42,8 +42,8 @@ class WebRecentSidebar extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
                 border: currentView == "HOME" ? Border.all(color: const Color(0xFF60A5FA), width: 1) : null,
               ),
-              child: Row(
-                children: const [
+              child: const Row(
+                children: [
                   Icon(Icons.dashboard_rounded, color: Colors.white, size: 18),
                   SizedBox(width: 10),
                   Text(
@@ -54,13 +54,10 @@ class WebRecentSidebar extends StatelessWidget {
               ),
             ),
           ),
-
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 15, vertical: 15),
             child: Divider(color: Colors.white10, height: 1),
           ),
-
-          // Recents Header
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
@@ -81,10 +78,7 @@ class WebRecentSidebar extends StatelessWidget {
               ],
             ),
           ),
-
           const SizedBox(height: 8),
-
-          // Dynamic Recents List
           Expanded(
             child: recentShortcuts.isEmpty
                 ? const Center(
@@ -137,8 +131,6 @@ class WebRecentSidebar extends StatelessWidget {
                     },
                   ),
           ),
-
-          // Version Tag
           Container(
             padding: const EdgeInsets.all(12),
             color: Colors.black38,

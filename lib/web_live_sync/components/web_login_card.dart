@@ -1,3 +1,5 @@
+// FILE: lib/web_live_sync/components/web_login_card.dart
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -80,7 +82,7 @@ class _WebLoginCardState extends State<WebLoginCard> {
           decoration: BoxDecoration(
             color: const Color(0xFF1E293B),
             borderRadius: BorderRadius.circular(25),
-            border: Border.all(color: Colors.cyanAccent.withOpacity(0.3), width: 1.5),
+            border: Border.all(color: const Color(0x4D22D3EE), width: 1.5),
             boxShadow: const [
               BoxShadow(color: Colors.black54, blurRadius: 25, offset: Offset(0, 10))
             ],
@@ -90,8 +92,8 @@ class _WebLoginCardState extends State<WebLoginCard> {
             children: [
               Container(
                 padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: Colors.cyanAccent.withOpacity(0.1),
+                decoration: const BoxDecoration(
+                  color: Color(0x1F22D3EE),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.storefront_rounded, size: 50, color: Colors.cyanAccent),
@@ -120,9 +122,9 @@ class _WebLoginCardState extends State<WebLoginCard> {
                   padding: const EdgeInsets.all(12),
                   margin: const EdgeInsets.only(bottom: 20),
                   decoration: BoxDecoration(
-                    color: Colors.redAccent.withOpacity(0.15),
+                    color: const Color(0x26EF4444),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.redAccent.withOpacity(0.4)),
+                    border: Border.all(color: const Color(0x66EF4444)),
                   ),
                   child: Row(
                     children: [
