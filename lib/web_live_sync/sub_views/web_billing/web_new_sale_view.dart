@@ -163,38 +163,57 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
   Widget build(BuildContext context) {
     final webPh = Provider.of<PharoahWebManager>(context);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildHeaderBar(webPh),
-        const SizedBox(height: 18),
-        Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        bool isWideScreen = constraints.maxWidth > 920;
+
+        return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              flex: 7,
-              child: Column(
+            _buildHeaderBar(webPh),
+            const SizedBox(height: 18),
+            if (isWideScreen)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Expanded(
+                    flex: 7,
+                    child: Column(
+                      children: [
+                        _buildProductSearchCard(webPh),
+                        const SizedBox(height: 16),
+                        _buildCartTable(webPh),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 18),
+                  Expanded(
+                    flex: 3,
+                    child: Column(
+                      children: [
+                        _buildCustomerCard(webPh),
+                        const SizedBox(height: 16),
+                        _buildGrandTotalCard(webPh),
+                      ],
+                    ),
+                  ),
+                ],
+              )
+            else
+              Column(
+                children: [
+                  _buildCustomerCard(webPh),
+                  const SizedBox(height: 16),
                   _buildProductSearchCard(webPh),
                   const SizedBox(height: 16),
                   _buildCartTable(webPh),
-                ],
-              ),
-            ),
-            const SizedBox(width: 18),
-            Expanded(
-              flex: 3,
-              child: Column(
-                children: [
-                  _buildCustomerCard(webPh),
                   const SizedBox(height: 16),
                   _buildGrandTotalCard(webPh),
                 ],
               ),
-            ),
           ],
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -220,16 +239,18 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
             icon: const Icon(Icons.arrow_back_rounded, size: 16),
             label: const Text("BACK", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
           ),
-          const SizedBox(width: 18),
-          const Icon(Icons.receipt_long_rounded, color: Color(0xFF38BDF8), size: 22),
-          const SizedBox(width: 10),
-          const Text(
-            "NEW TAX INVOICE (SALE BILLING)",
-            style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+          const SizedBox(width: 14),
+          const Icon(Icons.receipt_long_rounded, color: Color(0xFF38BDF8), size: 20),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text(
+              "NEW TAX INVOICE (SALE BILLING)",
+              style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
-          const Spacer(),
           SizedBox(
-            width: 130,
+            width: 120,
             height: 36,
             child: TextField(
               controller: billNoC,
@@ -244,7 +265,7 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           SegmentedButton<String>(
             segments: const [
               ButtonSegment(value: 'CASH', label: Text('CASH', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
@@ -454,31 +475,58 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Responsive Header that never overflows
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Row(
-                children: [
-                  Icon(Icons.person_rounded, color: Color(0xFF38BDF8), size: 18),
-                  SizedBox(width: 8),
-                  Text("CUSTOMER / CONSIGNEE", style: TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-                ],
-              ),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2563EB),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  elevation: 0,
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: const BoxDecoration(
+                  color: Color(0x332563EB),
+                  shape: BoxShape.circle,
                 ),
-                onPressed: () => _openQuickAddCustomer(webPh),
-                icon: const Icon(Icons.person_add_alt_1, size: 14),
-                label: const Text("+ CUSTOMER", style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold)),
+                child: const Icon(Icons.person_rounded, color: Color(0xFF38BDF8), size: 16),
+              ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  "CUSTOMER / CONSIGNEE",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 6),
+              InkWell(
+                onTap: () => _openQuickAddCustomer(webPh),
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2563EB),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.person_add_alt_1_rounded, color: Colors.white, size: 13),
+                      SizedBox(width: 4),
+                      Text(
+                        "NEW",
+                        style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
           const Divider(color: Colors.white10, height: 20),
+
+          // Selected Customer Card or Autocomplete
           if (selectedParty != null)
             Container(
               padding: const EdgeInsets.all(12),
@@ -493,9 +541,17 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(selectedParty!.name.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 13)),
+                        Text(
+                          selectedParty!.name.toUpperCase(),
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 13),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                         const SizedBox(height: 3),
-                        Text("GST: ${selectedParty!.gst} | State: ${selectedParty!.state}", style: const TextStyle(color: Colors.white54, fontSize: 10)),
+                        Text(
+                          "GST: ${selectedParty!.gst} | City: ${selectedParty!.city}",
+                          style: const TextStyle(color: Colors.white54, fontSize: 10),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ],
                     ),
                   ),
