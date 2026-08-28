@@ -271,12 +271,13 @@ class _QuickAddPartyModalState extends State<QuickAddPartyModal> {
       style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: Colors.white54, fontSize: 8.5, fontWeight: FontWeight.bold),
+        labelStyle: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold),
+        floatingLabelBehavior: FloatingLabelBehavior.always,
         prefixIcon: Icon(icon, color: const Color(0xFF38BDF8), size: 16),
         filled: true,
         fillColor: Colors.black26,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       ),
     );
   }
@@ -284,11 +285,12 @@ class _QuickAddPartyModalState extends State<QuickAddPartyModal> {
   InputDecoration _dropdownDecor(String label) {
     return InputDecoration(
       labelText: label,
-      labelStyle: const TextStyle(color: Colors.white54, fontSize: 8.5, fontWeight: FontWeight.bold),
+      labelStyle: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold),
+      floatingLabelBehavior: FloatingLabelBehavior.always,
       filled: true,
       fillColor: Colors.black26,
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
     );
   }
 }

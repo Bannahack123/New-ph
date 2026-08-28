@@ -332,7 +332,14 @@ class PharoahWebManager with ChangeNotifier {
     }
     rebuildInventory();
     notifyListeners();
-    pushUpdatedDataToCloud(); // Sync to Google Drive
+    pushUpdatedDataToCloud();
+  }
+
+  void deleteSale(String saleId) {
+    sales.removeWhere((s) => s.id == saleId);
+    rebuildInventory();
+    notifyListeners();
+    pushUpdatedDataToCloud();
   }
 
   void addPurchaseAndSync(Purchase purchase) {
@@ -358,6 +365,45 @@ class PharoahWebManager with ChangeNotifier {
         appliedRateType: item.appliedRateType,
       );
     }
+    rebuildInventory();
+    notifyListeners();
+    pushUpdatedDataToCloud();
+  }
+
+  void deletePurchase(String purId) {
+    purchases.removeWhere((p) => p.id == purId);
+    rebuildInventory();
+    notifyListeners();
+    pushUpdatedDataToCloud();
+  }
+
+  void deleteVoucher(String voucherId) {
+    vouchers.removeWhere((v) => v.id == voucherId);
+    notifyListeners();
+    pushUpdatedDataToCloud();
+  }
+
+  void deleteSaleChallan(String challanId) {
+    saleChallans.removeWhere((c) => c.id == challanId);
+    notifyListeners();
+    pushUpdatedDataToCloud();
+  }
+
+  void deletePurchaseChallan(String challanId) {
+    purchaseChallans.removeWhere((c) => c.id == challanId);
+    notifyListeners();
+    pushUpdatedDataToCloud();
+  }
+
+  void deleteSaleReturn(String returnId) {
+    saleReturns.removeWhere((r) => r.id == returnId);
+    rebuildInventory();
+    notifyListeners();
+    pushUpdatedDataToCloud();
+  }
+
+  void deletePurchaseReturn(String returnId) {
+    purchaseReturns.removeWhere((r) => r.id == returnId);
     rebuildInventory();
     notifyListeners();
     pushUpdatedDataToCloud();

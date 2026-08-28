@@ -34,7 +34,7 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
   List<BillItem> billItems = [];
   bool isSaving = false;
 
-  static const String currentTestId = "#PH-REV-107";
+  static const String currentTestId = "#PH-REV-108";
 
   @override
   void initState() {
@@ -141,7 +141,6 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
     );
   }
 
-  // Calculations
   double get subTotal => billItems.fold(0.0, (sum, it) => sum + it.total);
   double get totalTaxable => billItems.fold(0.0, (sum, it) => sum + (it.qty * it.rate - it.discountRupees));
   double get totalCGST => billItems.fold(0.0, (sum, it) => sum + it.cgst);
@@ -319,7 +318,6 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
               ),
             ],
           ),
-
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -346,7 +344,6 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
                 ),
                 const SizedBox(width: 8),
               ],
-
               SizedBox(
                 width: 110,
                 height: 36,
@@ -364,7 +361,6 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
                 ),
               ),
               const SizedBox(width: 8),
-
               InkWell(
                 onTap: () async {
                   final picked = await showDatePicker(
@@ -397,7 +393,6 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
                 ),
               ),
               const SizedBox(width: 8),
-
               SegmentedButton<String>(
                 segments: const [
                   ButtonSegment(value: 'CASH', label: Text('CASH', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
@@ -477,7 +472,6 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
               ),
             ],
           ),
-
           if (matchingMeds.isNotEmpty) ...[
             const SizedBox(height: 10),
             Container(
@@ -904,7 +898,7 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
             width: double.infinity,
             height: 42,
             child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
+              style: ElevatedButton.styleFrom(
                 foregroundColor: const Color(0xFF38BDF8),
                 side: const BorderSide(color: Color(0xFF38BDF8), width: 1.2),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
