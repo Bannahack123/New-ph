@@ -126,6 +126,8 @@ class _QuickAddPartyModalState extends State<QuickAddPartyModal> {
         borderRadius: BorderRadius.circular(20),
         side: const BorderSide(color: Colors.white12),
       ),
+      titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       title: Row(
         children: [
           Container(
@@ -144,103 +146,97 @@ class _QuickAddPartyModalState extends State<QuickAddPartyModal> {
         ],
       ),
       content: SizedBox(
-        width: 600,
+        width: 620,
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _inputField("FIRM / CUSTOMER NAME *", nameC, Icons.business, isCaps: true),
-              const SizedBox(height: 12),
+              const SizedBox(height: 5),
+              _ipadInput("FIRM / CUSTOMER NAME *", nameC, Icons.business, isCaps: true),
+              const SizedBox(height: 14),
               Row(
                 children: [
                   Expanded(
-                    child: DropdownButtonFormField<String>(
-                      value: selectedGroup,
-                      dropdownColor: const Color(0xFF1E293B),
-                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                      decoration: _dropdownDecor("ACCOUNT GROUP *"),
-                      items: accountGroups.map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
-                      onChanged: (v) => setState(() => selectedGroup = v!),
+                    child: _ipadDropdown(
+                      "ACCOUNT GROUP *",
+                      selectedGroup,
+                      accountGroups.map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
+                      (v) => setState(() => selectedGroup = v!),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: DropdownButtonFormField<String>(
-                      value: states.contains(selectedState) ? selectedState : "Rajasthan",
-                      dropdownColor: const Color(0xFF1E293B),
-                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                      decoration: _dropdownDecor("STATE (FOR GST)"),
-                      items: states.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                      onChanged: (v) => setState(() => selectedState = v!),
+                    child: _ipadDropdown(
+                      "STATE (FOR GST)",
+                      states.contains(selectedState) ? selectedState : "Rajasthan",
+                      states.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                      (v) => setState(() => selectedState = v!),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               Row(
                 children: [
-                  Expanded(child: _inputField("MOBILE NUMBER", phoneC, Icons.phone, isPhone: true)),
-                  const SizedBox(width: 10),
-                  Expanded(child: _inputField("EMAIL ID", emailC, Icons.email)),
+                  Expanded(child: _ipadInput("MOBILE NUMBER", phoneC, Icons.phone, isPhone: true)),
+                  const SizedBox(width: 12),
+                  Expanded(child: _ipadInput("EMAIL ID", emailC, Icons.email)),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               Row(
                 children: [
-                  Expanded(child: _inputField("GSTIN NUMBER", gstC, Icons.receipt_long, isCaps: true)),
-                  const SizedBox(width: 10),
-                  Expanded(child: _inputField("PAN (AUTO FROM GST)", panC, Icons.badge_outlined, isCaps: true)),
+                  Expanded(child: _ipadInput("GSTIN NUMBER", gstC, Icons.receipt_long, isCaps: true)),
+                  const SizedBox(width: 12),
+                  Expanded(child: _ipadInput("PAN (AUTO FROM GST)", panC, Icons.badge_outlined, isCaps: true)),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               Row(
                 children: [
-                  Expanded(child: _inputField("DRUG LICENSE (DL)", dlC, Icons.medical_services, isCaps: true)),
-                  const SizedBox(width: 10),
-                  Expanded(child: _inputField("DL EXPIRY", dlExpC, Icons.event_busy, isCaps: true)),
+                  Expanded(child: _ipadInput("DRUG LICENSE (DL)", dlC, Icons.medical_services, isCaps: true)),
+                  const SizedBox(width: 12),
+                  Expanded(child: _ipadInput("DL EXPIRY", dlExpC, Icons.event_busy, isCaps: true)),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               Row(
                 children: [
-                  Expanded(child: _inputField("CITY", cityC, Icons.location_city, isCaps: true)),
-                  const SizedBox(width: 10),
+                  Expanded(child: _ipadInput("CITY", cityC, Icons.location_city, isCaps: true)),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: DropdownButtonFormField<String>(
-                      value: selectedPriceLevel,
-                      dropdownColor: const Color(0xFF1E293B),
-                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                      decoration: _dropdownDecor("PRICING LEVEL"),
-                      items: ["A", "B", "C"].map((p) => DropdownMenuItem(value: p, child: Text("Rate $p"))).toList(),
-                      onChanged: (v) => setState(() => selectedPriceLevel = v!),
+                    child: _ipadDropdown(
+                      "PRICING LEVEL",
+                      selectedPriceLevel,
+                      ["A", "B", "C"].map((p) => DropdownMenuItem(value: p, child: Text("Rate $p"))).toList(),
+                      (v) => setState(() => selectedPriceLevel = v!),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              _inputField("OFFICE / SHOP ADDRESS", addressC, Icons.location_on),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
+              _ipadInput("OFFICE / SHOP ADDRESS", addressC, Icons.location_on),
+              const SizedBox(height: 14),
               Row(
                 children: [
-                  Expanded(child: _inputField("OPENING BALANCE ₹", opBalC, Icons.account_balance_wallet, isNum: true)),
-                  const SizedBox(width: 8),
-                  Expanded(child: _inputField("CREDIT LIMIT ₹", creditLimitC, Icons.speed, isNum: true)),
-                  const SizedBox(width: 8),
-                  Expanded(child: _inputField("CREDIT DAYS", creditDaysC, Icons.timer, isNum: true)),
+                  Expanded(child: _ipadInput("OPENING BALANCE ₹", opBalC, Icons.account_balance_wallet, isNum: true)),
+                  const SizedBox(width: 10),
+                  Expanded(child: _ipadInput("CREDIT LIMIT ₹", creditLimitC, Icons.speed, isNum: true)),
+                  const SizedBox(width: 10),
+                  Expanded(child: _ipadInput("CREDIT DAYS", creditDaysC, Icons.timer, isNum: true)),
                 ],
               ),
               if (activeSeries.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value: selectedSeriesId.isEmpty ? null : selectedSeriesId,
-                  dropdownColor: const Color(0xFF1E293B),
-                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                  decoration: _dropdownDecor("DEFAULT BILLING SERIES PREFERENCE"),
-                  items: activeSeries.map((s) => DropdownMenuItem(value: s.id, child: Text("${s.name} (${s.prefix})"))).toList(),
-                  onChanged: (v) => setState(() => selectedSeriesId = v ?? ""),
-                  hint: const Text("Select Default Series (Optional)", style: TextStyle(color: Colors.white38, fontSize: 11)),
+                const SizedBox(height: 14),
+                _ipadDropdown(
+                  "DEFAULT BILLING SERIES PREFERENCE",
+                  selectedSeriesId.isEmpty ? null : selectedSeriesId,
+                  activeSeries.map((s) => DropdownMenuItem(value: s.id, child: Text("${s.name} (${s.prefix})"))).toList(),
+                  (v) => setState(() => selectedSeriesId = v ?? ""),
+                  hint: "Select Default Series (Optional)",
                 ),
               ],
+              const SizedBox(height: 10),
             ],
           ),
         ),
@@ -254,6 +250,7 @@ class _QuickAddPartyModalState extends State<QuickAddPartyModal> {
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF2563EB),
             foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
           onPressed: _saveParty,
@@ -263,34 +260,90 @@ class _QuickAddPartyModalState extends State<QuickAddPartyModal> {
     );
   }
 
-  Widget _inputField(String label, TextEditingController ctrl, IconData icon, {bool isNum = false, bool isPhone = false, bool isCaps = false}) {
-    return TextField(
-      controller: ctrl,
-      keyboardType: isPhone ? TextInputType.phone : (isNum ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text),
-      textCapitalization: isCaps ? TextCapitalization.characters : TextCapitalization.none,
-      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold),
-        floatingLabelBehavior: FloatingLabelBehavior.always,
-        prefixIcon: Icon(icon, color: const Color(0xFF38BDF8), size: 16),
-        filled: true,
-        fillColor: Colors.black26,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-      ),
+  Widget _ipadInput(
+    String label,
+    TextEditingController ctrl,
+    IconData icon, {
+    bool isNum = false,
+    bool isPhone = false,
+    bool isCaps = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white60, fontSize: 9.5, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+        ),
+        const SizedBox(height: 5),
+        Container(
+          height: 44,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: Colors.black38,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.white12),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: const Color(0xFF38BDF8), size: 16),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: ctrl,
+                  keyboardType: isPhone ? TextInputType.phone : (isNum ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text),
+                  textCapitalization: isCaps ? TextCapitalization.characters : TextCapitalization.none,
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12.5),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
-  InputDecoration _dropdownDecor(String label) {
-    return InputDecoration(
-      labelText: label,
-      labelStyle: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold),
-      floatingLabelBehavior: FloatingLabelBehavior.always,
-      filled: true,
-      fillColor: Colors.black26,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+  Widget _ipadDropdown<T>(
+    String label,
+    T? value,
+    List<DropdownMenuItem<T>> items,
+    ValueChanged<T?> onChanged, {
+    String hint = "",
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white60, fontSize: 9.5, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+        ),
+        const SizedBox(height: 5),
+        Container(
+          height: 44,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: Colors.black38,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.white12),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<T>(
+              value: value,
+              isExpanded: true,
+              dropdownColor: const Color(0xFF1E293B),
+              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+              items: items,
+              onChanged: onChanged,
+              hint: hint.isNotEmpty ? Text(hint, style: const TextStyle(color: Colors.white38, fontSize: 11)) : null,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

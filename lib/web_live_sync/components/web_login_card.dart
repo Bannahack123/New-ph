@@ -54,8 +54,8 @@ class _WebLoginCardState extends State<WebLoginCard> {
   }
 
   void _submit() {
-    final token = storeKeyC.text.trim();
-    final user = usernameC.text.trim();
+    final token = storeKeyC.text.trim().toUpperCase();
+    final user = usernameC.text.trim().toLowerCase();
     final pass = passwordC.text.trim();
 
     if (token.isEmpty || user.isEmpty || pass.isEmpty) {

@@ -29,6 +29,8 @@ class _QuickAddProductModalState extends State<QuickAddProductModal> {
   final rateBC = TextEditingController(text: "0.0");
 
   String selectedForm = "TAB";
+  String? selectedCompanyId;
+  String? selectedSaltId;
   bool isNarcotic = false;
   bool isScheduleH1 = false;
 
@@ -57,7 +59,7 @@ class _QuickAddProductModalState extends State<QuickAddProductModal> {
 
     double mrp = double.tryParse(mrpC.text) ?? 0.0;
     double pur = double.tryParse(purRateC.text) ?? 0.0;
-    double a = double.tryParse(rateAC.text) ?? 0.0;
+    double a = double.tryParse(rateAC.text) ?? (mrp > 0 ? mrp : 0.0);
     double b = double.tryParse(rateBC.text) ?? (a > 0 ? a * 0.95 : 0.0);
     double gst = double.tryParse(gstC.text) ?? 12.0;
 
@@ -79,13 +81,11 @@ class _QuickAddProductModalState extends State<QuickAddProductModal> {
       stock: 0.0,
       isNarcotic: isNarcotic,
       isScheduleH1: isScheduleH1,
-      companyId: '',
-      saltId: '',
+      companyId: selectedCompanyId ?? '',
+      saltId: selectedSaltId ?? '',
     );
 
     widget.webPh.addMedicine(newMed);
-    
-    // 🔑 FIXED: Pehle is modal ko pop karein, fir callback trigger karein
     Navigator.pop(context);
     widget.onProductCreated(newMed.toMap());
   }
@@ -98,6 +98,8 @@ class _QuickAddProductModalState extends State<QuickAddProductModal> {
         borderRadius: BorderRadius.circular(20),
         side: const BorderSide(color: Colors.white12),
       ),
+      titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       title: Row(
         children: [
           Container(
@@ -111,61 +113,77 @@ class _QuickAddProductModalState extends State<QuickAddProductModal> {
           const SizedBox(width: 12),
           const Text(
             "QUICK ADD MEDICINE / PRODUCT",
-            style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+            style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
           ),
         ],
       ),
       content: SizedBox(
-        width: 550,
+        width: 600,
         child: SingleChildScrollView(
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _inputField("PRODUCT / DRUG NAME *", nameC, Icons.medication, isCaps: true),
-              const SizedBox(height: 12),
+              const SizedBox(height: 5),
+              _ipadInput("PRODUCT / DRUG NAME *", nameC, Icons.medication, isCaps: true),
+              const SizedBox(height: 14),
               Row(
                 children: [
-                  Expanded(flex: 3, child: _inputField("PACKING *", packC, Icons.inventory, isCaps: true)),
-                  const SizedBox(width: 10),
+                  Expanded(flex: 3, child: _ipadInput("PACKING *", packC, Icons.inventory, isCaps: true)),
+                  const SizedBox(width: 12),
                   Expanded(
                     flex: 2,
-                    child: DropdownButtonFormField<String>(
-                      value: selectedForm,
-                      dropdownColor: const Color(0xFF1E293B),
-                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                      decoration: InputDecoration(
-                        labelText: "FORM",
-                        labelStyle: const TextStyle(color: Colors.white54, fontSize: 9, fontWeight: FontWeight.bold),
-                        filled: true,
-                        fillColor: Colors.black26,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                      ),
-                      items: drugForms.map((f) => DropdownMenuItem(value: f, child: Text(f))).toList(),
-                      onChanged: (v) => setState(() => selectedForm = v!),
+                    child: _ipadDropdown(
+                      "DRUG FORM",
+                      selectedForm,
+                      drugForms.map((f) => DropdownMenuItem(value: f, child: Text(f))).toList(),
+                      (v) => setState(() => selectedForm = v!),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               Row(
                 children: [
-                  Expanded(child: _inputField("HSN CODE", hsnC, Icons.tag, isCaps: true)),
+                  Expanded(
+                    child: _ipadDropdown(
+                      "COMPANY / BRAND",
+                      selectedCompanyId,
+                      widget.webPh.companies.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))).toList(),
+                      (v) => setState(() => selectedCompanyId = v),
+                      hint: "Select Brand (Optional)",
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _ipadDropdown(
+                      "SALT COMPOSITION",
+                      selectedSaltId,
+                      widget.webPh.salts.map((s) => DropdownMenuItem(value: s.id, child: Text(s.name))).toList(),
+                      (v) => setState(() => selectedSaltId = v),
+                      hint: "Select Salt (Optional)",
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(child: _ipadInput("HSN CODE", hsnC, Icons.tag, isCaps: true)),
+                  const SizedBox(width: 12),
+                  Expanded(child: _ipadInput("GST %", gstC, Icons.percent, isNum: true)),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(child: _ipadInput("MRP ₹", mrpC, Icons.currency_rupee, isNum: true)),
                   const SizedBox(width: 10),
-                  Expanded(child: _inputField("GST %", gstC, Icons.percent, isNum: true)),
+                  Expanded(child: _ipadInput("PUR. RATE ₹", purRateC, Icons.shopping_cart, isNum: true)),
+                  const SizedBox(width: 10),
+                  Expanded(child: _ipadInput("SALE RATE A ₹", rateAC, Icons.sell, isNum: true)),
                 ],
               ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(child: _inputField("MRP ₹", mrpC, Icons.currency_rupee, isNum: true)),
-                  const SizedBox(width: 8),
-                  Expanded(child: _inputField("PUR. RATE ₹", purRateC, Icons.shopping_cart, isNum: true)),
-                  const SizedBox(width: 8),
-                  Expanded(child: _inputField("SALE RATE A ₹", rateAC, Icons.sell, isNum: true)),
-                ],
-              ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               Row(
                 children: [
                   Expanded(
@@ -190,6 +208,7 @@ class _QuickAddProductModalState extends State<QuickAddProductModal> {
                   ),
                 ],
               ),
+              const SizedBox(height: 10),
             ],
           ),
         ),
@@ -203,6 +222,7 @@ class _QuickAddProductModalState extends State<QuickAddProductModal> {
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF2563EB),
             foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
           onPressed: _saveProduct,
@@ -212,21 +232,89 @@ class _QuickAddProductModalState extends State<QuickAddProductModal> {
     );
   }
 
-  Widget _inputField(String label, TextEditingController ctrl, IconData icon, {bool isNum = false, bool isCaps = false}) {
-    return TextField(
-      controller: ctrl,
-      keyboardType: isNum ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text,
-      textCapitalization: isCaps ? TextCapitalization.characters : TextCapitalization.none,
-      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(color: Colors.white54, fontSize: 8.5, fontWeight: FontWeight.bold),
-        prefixIcon: Icon(icon, color: const Color(0xFF38BDF8), size: 16),
-        filled: true,
-        fillColor: Colors.black26,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      ),
+  Widget _ipadInput(
+    String label,
+    TextEditingController ctrl,
+    IconData icon, {
+    bool isNum = false,
+    bool isCaps = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white60, fontSize: 9.5, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+        ),
+        const SizedBox(height: 5),
+        Container(
+          height: 44,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: Colors.black38,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.white12),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: const Color(0xFFA78BFA), size: 16),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: ctrl,
+                  keyboardType: isNum ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text,
+                  textCapitalization: isCaps ? TextCapitalization.characters : TextCapitalization.none,
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12.5),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _ipadDropdown<T>(
+    String label,
+    T? value,
+    List<DropdownMenuItem<T>> items,
+    ValueChanged<T?> onChanged, {
+    String hint = "",
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white60, fontSize: 9.5, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+        ),
+        const SizedBox(height: 5),
+        Container(
+          height: 44,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: Colors.black38,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.white12),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<T>(
+              value: value,
+              isExpanded: true,
+              dropdownColor: const Color(0xFF1E293B),
+              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+              items: items,
+              onChanged: onChanged,
+              hint: hint.isNotEmpty ? Text(hint, style: const TextStyle(color: Colors.white38, fontSize: 11)) : null,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

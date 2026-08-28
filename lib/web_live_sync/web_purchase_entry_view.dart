@@ -5,6 +5,9 @@ import 'package:provider/provider.dart';
 import 'web_models.dart';
 import 'pharoah_web_manager.dart';
 import 'web_app_date_logic.dart';
+import 'sub_views/web_billing/quick_add_party_modal.dart';
+import 'sub_views/web_billing/quick_add_product_modal.dart';
+import 'sub_views/web_billing/web_batch_lookup_dialog.dart';
 
 class WebPurchaseEntryView extends StatefulWidget {
   final VoidCallback onBack;
@@ -19,6 +22,9 @@ class _WebPurchaseEntryViewState extends State<WebPurchaseEntryView> {
   final supplierBillNoC = TextEditingController();
   final internalNoC = TextEditingController();
   final extraDiscC = TextEditingController(text: "0");
+  final productSearchC = TextEditingController();
+  final supplierSearchC = TextEditingController();
+
   DateTime billDate = DateTime.now();
   DateTime entryDate = DateTime.now();
   String paymentMode = "CREDIT";
@@ -26,6 +32,8 @@ class _WebPurchaseEntryViewState extends State<WebPurchaseEntryView> {
   Party? selectedSupplier;
   List<PurchaseItem> purchaseItems = [];
   bool isSaving = false;
+
+  static const String currentTestId = "#PH-REV-112";
 
   @override
   void initState() {
@@ -41,6 +49,8 @@ class _WebPurchaseEntryViewState extends State<WebPurchaseEntryView> {
     supplierBillNoC.dispose();
     internalNoC.dispose();
     extraDiscC.dispose();
+    productSearchC.dispose();
+    supplierSearchC.dispose();
     super.dispose();
   }
 
@@ -52,26 +62,51 @@ class _WebPurchaseEntryViewState extends State<WebPurchaseEntryView> {
     final rateAC = TextEditingController(text: itemToEdit?.rateA.toStringAsFixed(2) ?? med.rateA.toStringAsFixed(2));
     final rateBC = TextEditingController(text: itemToEdit?.rateB.toStringAsFixed(2) ?? med.rateB.toStringAsFixed(2));
     final rateCC = TextEditingController(text: itemToEdit?.rateC.toStringAsFixed(2) ?? med.rateC.toStringAsFixed(2));
+    final rateCDiscC = TextEditingController(text: itemToEdit?.rateCFormula.toString() ?? "0.0");
     final qtyC = TextEditingController(text: itemToEdit?.qty.toInt().toString() ?? "1");
     final freeC = TextEditingController(text: itemToEdit?.freeQty.toInt().toString() ?? "0");
     final gstC = TextEditingController(text: itemToEdit?.gstRate.toString() ?? med.gst.toString());
     final discPerC = TextEditingController(text: itemToEdit?.discountPer.toString() ?? "0.0");
+    final discAmtC = TextEditingController(text: itemToEdit?.discountRupees.toString() ?? "0.0");
 
     String selectedRateType = itemToEdit?.appliedRateType ?? "A";
+    List<BatchInfo> availableBatches = webPh.batchHistory[med.identityKey] ?? [];
 
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (c) => StatefulBuilder(
         builder: (context, setDialogState) {
+          void calculateRateC() {
+            double mrp = double.tryParse(mrpC.text) ?? 0.0;
+            double gst = double.tryParse(gstC.text) ?? 0.0;
+            double formulaDisc = double.tryParse(rateCDiscC.text) ?? 0.0;
+            double baseTaxable = (mrp / (1 + (gst / 100)));
+            double finalDerivedRate = baseTaxable - (baseTaxable * (formulaDisc / 100));
+            rateCC.text = finalDerivedRate.toStringAsFixed(2);
+          }
+
+          void syncDiscount(bool isPercentSource) {
+            double q = double.tryParse(qtyC.text) ?? 0;
+            double pRate = double.tryParse(purRateC.text) ?? 0;
+            double gross = q * pRate;
+            if (gross <= 0) return;
+            if (isPercentSource) {
+              double p = double.tryParse(discPerC.text) ?? 0;
+              discAmtC.text = (gross * (p / 100)).toStringAsFixed(2);
+            } else {
+              double a = double.tryParse(discAmtC.text) ?? 0;
+              discPerC.text = ((a / gross) * 100).toStringAsFixed(2);
+            }
+          }
+
           double q = double.tryParse(qtyC.text) ?? 0.0;
           double pRate = double.tryParse(purRateC.text) ?? 0.0;
-          double dPer = double.tryParse(discPerC.text) ?? 0.0;
+          double dAmt = double.tryParse(discAmtC.text) ?? 0.0;
           double gPer = double.tryParse(gstC.text) ?? 0.0;
 
           double gross = q * pRate;
-          double discAmt = gross * (dPer / 100);
-          double taxable = gross - discAmt;
+          double taxable = gross - dAmt;
           double itemTotal = taxable * (1 + gPer / 100);
 
           return AlertDialog(
@@ -114,13 +149,55 @@ class _WebPurchaseEntryViewState extends State<WebPurchaseEntryView> {
               ],
             ),
             content: SizedBox(
-              width: 580,
+              width: 600,
               child: SingleChildScrollView(
                 child: Column(
                   children: [
                     Row(
                       children: [
-                        Expanded(flex: 3, child: _dialogInput("BATCH NO *", batchC, isCaps: false)),
+                        Expanded(
+                          flex: 4,
+                          child: _dialogInput(
+                            "BATCH NO (CASE-SENSITIVE) *",
+                            batchC,
+                            isHighlight: true,
+                            suffix: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFF59E0B),
+                                foregroundColor: Colors.black,
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                elevation: 0,
+                              ),
+                              onPressed: () async {
+                                final selected = await showDialog<dynamic>(
+                                  context: context,
+                                  builder: (ctx) => WebBatchLookupDialog(
+                                    medicine: med,
+                                    batches: availableBatches,
+                                    prioritizeExpired: false,
+                                  ),
+                                );
+                                if (selected != null && selected is BatchInfo) {
+                                  setDialogState(() {
+                                    batchC.text = selected.batch;
+                                    expC.text = selected.exp;
+                                    mrpC.text = selected.mrp.toStringAsFixed(2);
+                                    purRateC.text = selected.purRate.toStringAsFixed(2);
+                                    rateAC.text = selected.rateA.toStringAsFixed(2);
+                                    rateBC.text = selected.rateB.toStringAsFixed(2);
+                                    rateCC.text = selected.rateC.toStringAsFixed(2);
+                                    rateCDiscC.text = selected.rateCFormula.toStringAsFixed(2);
+                                    selectedRateType = selected.appliedRateType;
+                                    syncDiscount(true);
+                                  });
+                                }
+                              },
+                              icon: const Icon(Icons.layers_rounded, size: 14),
+                              label: const Text("BATCHES", style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                        ),
                         const SizedBox(width: 10),
                         Expanded(flex: 2, child: _dialogInput("EXPIRY (MM/YY) *", expC, isNum: true)),
                       ],
@@ -130,7 +207,7 @@ class _WebPurchaseEntryViewState extends State<WebPurchaseEntryView> {
                       children: [
                         Expanded(child: _dialogInput("MRP ₹", mrpC, isNum: true, onChanged: (_) => setDialogState(() {}))),
                         const SizedBox(width: 10),
-                        Expanded(child: _dialogInput("PUR. RATE ₹ *", purRateC, isNum: true, isHighlight: true, onChanged: (_) => setDialogState(() {}))),
+                        Expanded(child: _dialogInput("PUR. RATE ₹ *", purRateC, isNum: true, isHighlight: true, onChanged: (_) => setDialogState(() => syncDiscount(true)))),
                         const SizedBox(width: 10),
                         Expanded(child: _dialogInput("GST %", gstC, isNum: true, onChanged: (_) => setDialogState(() {}))),
                       ],
@@ -138,27 +215,45 @@ class _WebPurchaseEntryViewState extends State<WebPurchaseEntryView> {
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        Expanded(child: _dialogInput("QTY *", qtyC, isNum: true, isHighlight: true, onChanged: (_) => setDialogState(() {}))),
+                        Expanded(child: _dialogInput("QTY *", qtyC, isNum: true, isHighlight: true, onChanged: (_) => setDialogState(() => syncDiscount(true)))),
                         const SizedBox(width: 10),
                         Expanded(child: _dialogInput("FREE QTY", freeC, isNum: true)),
                         const SizedBox(width: 10),
-                        Expanded(child: _dialogInput("ITEM DISC %", discPerC, isNum: true, onChanged: (_) => setDialogState(() {}))),
+                        Expanded(child: _dialogInput("DISC %", discPerC, isNum: true, onChanged: (_) => setDialogState(() => syncDiscount(true)))),
+                        const SizedBox(width: 10),
+                        Expanded(child: _dialogInput("DISC ₹", discAmtC, isNum: true, onChanged: (_) => setDialogState(() => syncDiscount(false)))),
                       ],
                     ),
                     const SizedBox(height: 12),
                     const Divider(color: Colors.white10),
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text("SALE RATES FOR THIS BATCH", style: TextStyle(color: Colors.white54, fontSize: 9, fontWeight: FontWeight.bold)),
-                    ),
-                    const SizedBox(height: 8),
                     Row(
                       children: [
-                        Expanded(child: _dialogInput("RATE A (STD)", rateAC, isNum: true)),
+                        const Text("APPLY RATE SCHEME:", style: TextStyle(color: Colors.white54, fontSize: 9, fontWeight: FontWeight.bold)),
+                        const SizedBox(width: 10),
+                        _segmentRate("RATE A", selectedRateType == "A", () => setDialogState(() => selectedRateType = "A")),
+                        const SizedBox(width: 6),
+                        _segmentRate("RATE B", selectedRateType == "B", () => setDialogState(() => selectedRateType = "B")),
+                        const SizedBox(width: 6),
+                        _segmentRate("RATE C", selectedRateType == "C", () {
+                          setDialogState(() {
+                            selectedRateType = "C";
+                            calculateRateC();
+                          });
+                        }),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        if (selectedRateType == "C") ...[
+                          Expanded(child: _dialogInput("C FORMULA %", rateCDiscC, isNum: true, onChanged: (_) => setDialogState(() => calculateRateC()))),
+                          const SizedBox(width: 8),
+                        ],
+                        Expanded(child: _dialogInput("RATE A ₹", rateAC, isNum: true)),
                         const SizedBox(width: 8),
-                        Expanded(child: _dialogInput("RATE B (SPL)", rateBC, isNum: true)),
+                        Expanded(child: _dialogInput("RATE B ₹", rateBC, isNum: true)),
                         const SizedBox(width: 8),
-                        Expanded(child: _dialogInput("RATE C (MIN)", rateCC, isNum: true)),
+                        Expanded(child: _dialogInput("RATE C ₹", rateCC, isNum: true, isReadOnly: selectedRateType == "C")),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -220,9 +315,10 @@ class _WebPurchaseEntryViewState extends State<WebPurchaseEntryView> {
                     rateA: a,
                     rateB: b,
                     rateC: rateCVal,
-                    discountPer: dPer,
-                    discountRupees: discAmt,
+                    discountPer: double.tryParse(discPerC.text) ?? 0.0,
+                    discountRupees: dAmt,
                     appliedRateType: selectedRateType,
+                    rateCFormula: double.tryParse(rateCDiscC.text) ?? 0.0,
                   );
 
                   setState(() {
@@ -244,7 +340,31 @@ class _WebPurchaseEntryViewState extends State<WebPurchaseEntryView> {
     );
   }
 
-  // Calculations
+  void _openQuickAddProduct(PharoahWebManager webPh) {
+    showDialog(
+      context: context,
+      builder: (c) => QuickAddProductModal(
+        webPh: webPh,
+        onProductCreated: (newMedMap) {
+          final medObj = Medicine.fromMap(newMedMap);
+          _openPurchaseItemDialog(webPh, medObj);
+        },
+      ),
+    );
+  }
+
+  void _openQuickAddSupplier(PharoahWebManager webPh) {
+    showDialog(
+      context: context,
+      builder: (c) => QuickAddPartyModal(
+        webPh: webPh,
+        onPartyCreated: (newSupplier) {
+          setState(() => selectedSupplier = newSupplier);
+        },
+      ),
+    );
+  }
+
   double get subTotal => purchaseItems.fold(0.0, (sum, it) => sum + it.total);
   double get totalTaxable => purchaseItems.fold(0.0, (sum, it) => sum + (it.qty * it.purchaseRate - it.discountRupees));
   double get totalITC => subTotal - totalTaxable;
@@ -369,12 +489,25 @@ class _WebPurchaseEntryViewState extends State<WebPurchaseEntryView> {
           const Icon(Icons.downloading_rounded, color: Color(0xFFF59E0B), size: 22),
           const SizedBox(width: 10),
           const Text(
-            "PURCHASE / STOCK INWARD ENTRY",
+            "PURCHASE INWARD",
             style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+          ),
+          const SizedBox(width: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+            decoration: BoxDecoration(
+              color: const Color(0x33F59E0B),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: const Color(0xFFF59E0B)),
+            ),
+            child: const Text(
+              currentTestId,
+              style: TextStyle(color: Color(0xFFF59E0B), fontSize: 9, fontWeight: FontWeight.w900),
+            ),
           ),
           const Spacer(),
           SizedBox(
-            width: 120,
+            width: 110,
             height: 36,
             child: TextField(
               controller: internalNoC,
@@ -391,14 +524,14 @@ class _WebPurchaseEntryViewState extends State<WebPurchaseEntryView> {
           ),
           const SizedBox(width: 10),
           SizedBox(
-            width: 140,
+            width: 130,
             height: 36,
             child: TextField(
               controller: supplierBillNoC,
               textCapitalization: TextCapitalization.characters,
               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 12),
               decoration: InputDecoration(
-                labelText: "SUPPLIER BILL NO *",
+                labelText: "BILL NO *",
                 labelStyle: const TextStyle(color: Colors.white54, fontSize: 9),
                 filled: true,
                 fillColor: Colors.black26,
@@ -407,7 +540,34 @@ class _WebPurchaseEntryViewState extends State<WebPurchaseEntryView> {
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
+          InkWell(
+            onTap: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: billDate,
+                firstDate: WebAppDateLogic.getFYStart(webPh.financialYear),
+                lastDate: WebAppDateLogic.getFYEnd(webPh.financialYear),
+              );
+              if (picked != null) setState(() => billDate = picked);
+            },
+            child: Container(
+              height: 36,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(8)),
+              child: Row(
+                children: [
+                  const Icon(Icons.calendar_month_rounded, color: Color(0xFFF59E0B), size: 14),
+                  const SizedBox(width: 6),
+                  Text(
+                    WebAppDateLogic.format(billDate),
+                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
           SegmentedButton<String>(
             segments: const [
               ButtonSegment(value: 'CASH', label: Text('CASH', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
@@ -422,6 +582,17 @@ class _WebPurchaseEntryViewState extends State<WebPurchaseEntryView> {
   }
 
   Widget _buildProductSearchCard(PharoahWebManager webPh) {
+    final query = productSearchC.text.trim().toLowerCase();
+    final matchingMeds = query.isEmpty
+        ? <Medicine>[]
+        : webPh.medicines
+            .where((m) =>
+                m.name.toLowerCase().contains(query) ||
+                m.systemId.toLowerCase().contains(query) ||
+                m.hsnCode.toLowerCase().contains(query))
+            .take(6)
+            .toList();
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -429,38 +600,103 @@ class _WebPurchaseEntryViewState extends State<WebPurchaseEntryView> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0x66F59E0B), width: 1.2),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Autocomplete<Medicine>(
-              displayStringForOption: (m) => "${m.name} (${m.packing}) - Stock: ${m.stock.toInt()}",
-              optionsBuilder: (textEditingValue) {
-                if (textEditingValue.text.isEmpty) return const Iterable.empty();
-                return webPh.medicines.where((m) =>
-                    m.name.toLowerCase().contains(textEditingValue.text.toLowerCase()) ||
-                    m.systemId.toLowerCase().contains(textEditingValue.text.toLowerCase()));
-              },
-              onSelected: (med) => _openPurchaseItemDialog(webPh, med),
-              fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                return TextField(
-                  controller: controller,
-                  focusNode: focusNode,
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: productSearchC,
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
                   decoration: InputDecoration(
                     labelText: "SEARCH PRODUCT TO INWARD",
                     labelStyle: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold),
-                    hintText: "Type medicine name to add stock...",
+                    hintText: "Type medicine name to add inward stock...",
                     hintStyle: const TextStyle(color: Colors.white24, fontSize: 11),
                     prefixIcon: const Icon(Icons.search, color: Color(0xFFF59E0B), size: 18),
+                    suffixIcon: productSearchC.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear_rounded, color: Colors.white54, size: 18),
+                            onPressed: () => setState(() => productSearchC.clear()),
+                          )
+                        : null,
                     filled: true,
                     fillColor: Colors.black26,
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                   ),
-                );
-              },
-            ),
+                  onChanged: (v) => setState(() {}),
+                ),
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF59E0B),
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  elevation: 0,
+                ),
+                onPressed: () => _openQuickAddProduct(webPh),
+                icon: const Icon(Icons.add_box_rounded, size: 18),
+                label: const Text("+ PRODUCT", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 0.5)),
+              ),
+            ],
           ),
+          if (matchingMeds.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              constraints: const BoxConstraints(maxHeight: 220),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F172A),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0x33F59E0B)),
+              ),
+              child: ListView.builder(
+                shrinkWrap: true,
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                itemCount: matchingMeds.length,
+                itemBuilder: (context, idx) {
+                  final med = matchingMeds[idx];
+                  return Container(
+                    decoration: const BoxDecoration(
+                      border: Border(bottom: BorderSide(color: Colors.white10, width: 0.5)),
+                    ),
+                    child: ListTile(
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                      leading: const Icon(Icons.medication_rounded, color: Color(0xFFF59E0B), size: 18),
+                      title: Row(
+                        children: [
+                          Text(med.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 13)),
+                          const SizedBox(width: 8),
+                          Text("(${med.packing})", style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                          const Spacer(),
+                          Text(
+                            "Stock: ${med.stock.toInt()} Qty",
+                            style: TextStyle(
+                              color: med.stock > 0 ? Colors.greenAccent : Colors.redAccent,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                      subtitle: Text(
+                        "MRP: ₹${med.mrp.toStringAsFixed(2)} | Pur Rate: ₹${med.purRate.toStringAsFixed(2)} | GST: ${med.gst.toInt()}%",
+                        style: const TextStyle(color: Colors.white38, fontSize: 10),
+                      ),
+                      onTap: () {
+                        setState(() => productSearchC.clear());
+                        _openPurchaseItemDialog(webPh, med);
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -594,6 +830,17 @@ class _WebPurchaseEntryViewState extends State<WebPurchaseEntryView> {
   );
 
   Widget _buildSupplierCard(PharoahWebManager webPh) {
+    final suppQuery = supplierSearchC.text.trim().toLowerCase();
+    final matchingSuppliers = suppQuery.isEmpty
+        ? <Party>[]
+        : webPh.parties
+            .where((p) =>
+                p.group == "Sundry Creditors" &&
+                (p.name.toLowerCase().contains(suppQuery) ||
+                 p.city.toLowerCase().contains(suppQuery)))
+            .take(5)
+            .toList();
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -604,11 +851,28 @@ class _WebPurchaseEntryViewState extends State<WebPurchaseEntryView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(Icons.business_rounded, color: Color(0xFFF59E0B), size: 18),
-              SizedBox(width: 8),
-              Text("SUPPLIER / DISTRIBUTOR", style: TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+              const Row(
+                children: [
+                  Icon(Icons.business_rounded, color: Color(0xFFF59E0B), size: 18),
+                  SizedBox(width: 8),
+                  Text("SUPPLIER / DISTRIBUTOR", style: TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                ],
+              ),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF59E0B),
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  elevation: 0,
+                ),
+                onPressed: () => _openQuickAddSupplier(webPh),
+                icon: const Icon(Icons.person_add_alt_1_rounded, size: 14),
+                label: const Text("+ SUPPLIER", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+              ),
             ],
           ),
           const Divider(color: Colors.white10, height: 20),
@@ -639,34 +903,58 @@ class _WebPurchaseEntryViewState extends State<WebPurchaseEntryView> {
                 ],
               ),
             )
-          else
-            Autocomplete<Party>(
-              displayStringForOption: (p) => "${p.name} (${p.city})",
-              optionsBuilder: (textEditingValue) {
-                if (textEditingValue.text.isEmpty) return const Iterable.empty();
-                return webPh.parties.where((p) =>
-                    p.group == "Sundry Creditors" &&
-                    (p.name.toLowerCase().contains(textEditingValue.text.toLowerCase()) ||
-                     p.city.toLowerCase().contains(textEditingValue.text.toLowerCase())));
-              },
-              onSelected: (p) => setState(() => selectedSupplier = p),
-              fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                return TextField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                  decoration: InputDecoration(
-                    hintText: "Select Supplier / Distributor...",
-                    hintStyle: const TextStyle(color: Colors.white38, fontSize: 11),
-                    prefixIcon: const Icon(Icons.search, color: Color(0xFFF59E0B), size: 18),
-                    filled: true,
-                    fillColor: Colors.black26,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                  ),
-                );
-              },
+          else ...[
+            TextField(
+              controller: supplierSearchC,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+              decoration: InputDecoration(
+                hintText: "Search Supplier by Name or City...",
+                hintStyle: const TextStyle(color: Colors.white38, fontSize: 11),
+                prefixIcon: const Icon(Icons.search, color: Color(0xFFF59E0B), size: 18),
+                suffixIcon: supplierSearchC.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, color: Colors.white54, size: 16),
+                        onPressed: () => setState(() => supplierSearchC.clear()),
+                      )
+                    : null,
+                filled: true,
+                fillColor: Colors.black26,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              ),
+              onChanged: (v) => setState(() {}),
             ),
+            if (matchingSuppliers.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                constraints: const BoxConstraints(maxHeight: 180),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F172A),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0x33F59E0B)),
+                ),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  itemCount: matchingSuppliers.length,
+                  itemBuilder: (context, idx) {
+                    final party = matchingSuppliers[idx];
+                    return ListTile(
+                      dense: true,
+                      title: Text(party.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                      subtitle: Text("${party.city} | GST: ${party.gst}", style: const TextStyle(color: Colors.white38, fontSize: 9.5)),
+                      onTap: () {
+                        setState(() {
+                          selectedSupplier = party;
+                          supplierSearchC.clear();
+                        });
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ],
         ],
       ),
     );
@@ -762,20 +1050,73 @@ class _WebPurchaseEntryViewState extends State<WebPurchaseEntryView> {
     ]),
   );
 
-  Widget _dialogInput(String label, TextEditingController ctrl, {bool isNum = false, bool isCaps = false, bool isHighlight = false, Function(String)? onChanged}) {
-    return TextField(
-      controller: ctrl,
-      onChanged: onChanged,
-      keyboardType: isNum ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text,
-      textCapitalization: isCaps ? TextCapitalization.characters : TextCapitalization.none,
-      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(color: Colors.white54, fontSize: 8.5, fontWeight: FontWeight.bold),
-        filled: true,
-        fillColor: isHighlight ? const Color(0x33F59E0B) : Colors.black26,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: isHighlight ? const BorderSide(color: Color(0xFFF59E0B)) : BorderSide.none),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+  Widget _dialogInput(
+    String label,
+    TextEditingController ctrl, {
+    bool isNum = false,
+    bool isCaps = false,
+    bool isHighlight = false,
+    bool isReadOnly = false,
+    Widget? suffix,
+    Function(String)? onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(color: Colors.white54, fontSize: 8.5, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+          decoration: BoxDecoration(
+            color: isReadOnly ? Colors.black38 : (isHighlight ? const Color(0x33F59E0B) : Colors.black26),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: isHighlight ? const Color(0xFFF59E0B) : Colors.white12),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: ctrl,
+                  readOnly: isReadOnly,
+                  onChanged: onChanged,
+                  keyboardType: isNum ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text,
+                  textCapitalization: isCaps ? TextCapitalization.characters : TextCapitalization.none,
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(vertical: 8),
+                    border: InputBorder.none,
+                  ),
+                ),
+              ),
+              if (suffix != null) suffix,
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _segmentRate(String label, bool isSelected, VoidCallback onTap) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFFF59E0B) : Colors.black26,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: isSelected ? Colors.black : Colors.white54,
+              fontSize: 9,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -18,7 +18,7 @@ class AppSyncEngine {
     'series.json', 'shortage.json', 'routs.json', 'comps.json', 'salts.json'
   ];
 
-  /// 🔄 BULLETPROOF 2-WAY SYNC ENGINE (TIMESTAMP + DELETION AWARE)
+  /// 🔄 BULLETPROOF 2-WAY SYNC ENGINE (FULL TRANSACTIONS & PURCHASES DELTA MERGE)
   static Future<bool> pushStoreData(PharoahManager ph) async {
     try {
       if (ph.activeCompany == null || ph.currentFY.isEmpty) return false;
@@ -29,7 +29,6 @@ class AppSyncEngine {
       final companyId = ph.activeCompany!.id;
       final storeToken = await WebLiveToken.getOrCreateToken(companyId);
 
-      // Read last sync time to distinguish NEW web entries from LOCALLY DELETED entries
       final String? lastSyncStr = prefs.getString('last_cloud_sync_time');
       final DateTime lastSyncTime = lastSyncStr != null && lastSyncStr.isNotEmpty
           ? DateTime.tryParse(lastSyncStr) ?? DateTime.fromMillisecondsSinceEpoch(0)
@@ -42,6 +41,13 @@ class AppSyncEngine {
       // Current IDs in App
       final Set<String> currentAppSaleIds = ph.sales.map((s) => s.id).toSet();
       final Set<String> currentAppSaleBillNos = ph.sales.map((s) => s.billNo).toSet();
+      final Set<String> currentAppPurIds = ph.purchases.map((p) => p.id).toSet();
+      final Set<String> currentAppPurInternalNos = ph.purchases.map((p) => p.internalNo).toSet();
+      final Set<String> currentAppVoucIds = ph.vouchers.map((v) => v.id).toSet();
+      final Set<String> currentAppSchIds = ph.saleChallans.map((c) => c.id).toSet();
+      final Set<String> currentAppPchIds = ph.purchaseChallans.map((c) => c.id).toSet();
+      final Set<String> currentAppSrIds = ph.saleReturns.map((r) => r.id).toSet();
+      final Set<String> currentAppPrIds = ph.purchaseReturns.map((r) => r.id).toSet();
 
       // -----------------------------------------------------------------------
       // STEP 1: SMART PULL & DELTA MERGE
@@ -59,11 +65,11 @@ class AppSyncEngine {
           final Map<String, dynamic> cloudData = jsonDecode(pullRes.body);
           if (cloudData['status'] == 'SUCCESS' && cloudData['files'] != null) {
             final Map<String, dynamic> cloudFiles = cloudData['files'];
+            bool hasAnyNewData = false;
 
             // 1. Merge Web Sales
             if (cloudFiles['sales.json'] != null) {
               List<dynamic> cloudSalesList = jsonDecode(cloudFiles['sales.json'].toString());
-              bool hasNewSales = false;
 
               for (var rawSale in cloudSalesList) {
                 final saleMap = rawSale as Map<String, dynamic>;
@@ -73,13 +79,10 @@ class AppSyncEngine {
                 bool isWebBill = tag == 'WEB-PORTAL' || sId.startsWith('SALE-WEB');
 
                 if (isWebBill) {
-                  // If this bill was already imported in the past OR created before last sync,
-                  // and is missing from App -> User DELETED it on App! DO NOT RE-IMPORT!
                   if (importedHistory.contains(sId) && !currentAppSaleIds.contains(sId)) {
-                    continue; // Skip deleted bill
+                    continue; // Skip locally deleted bill
                   }
 
-                  // Check creation timestamp from ID (e.g. SALE-WEB-1772183920000)
                   if (!importedHistory.contains(sId) && !currentAppSaleIds.contains(sId)) {
                     int? billEpoch;
                     if (sId.startsWith('SALE-WEB-')) {
@@ -87,37 +90,119 @@ class AppSyncEngine {
                     }
                     if (billEpoch != null && lastSyncTime.millisecondsSinceEpoch > 0) {
                       DateTime billCreatedAt = DateTime.fromMillisecondsSinceEpoch(billEpoch);
-                      // If bill was created BEFORE last sync and is not in App -> It was deleted
                       if (billCreatedAt.isBefore(lastSyncTime)) {
                         importedHistory.add(sId);
                         continue;
                       }
                     }
 
-                    // Genuine NEW bill from Web!
                     if (!currentAppSaleBillNos.contains(bNo)) {
                       ph.sales.add(Sale.fromMap(saleMap));
                       importedHistory.add(sId);
                       currentAppSaleIds.add(sId);
                       currentAppSaleBillNos.add(bNo);
-                      hasNewSales = true;
+                      hasAnyNewData = true;
                     }
                   } else {
                     importedHistory.add(sId);
                   }
                 }
               }
+            }
 
-              if (hasNewSales) {
-                await ph.save();
+            // 2. 🔥 Merge Web Purchases (Stock Inward)
+            if (cloudFiles['purc.json'] != null) {
+              List<dynamic> cloudPurList = jsonDecode(cloudFiles['purc.json'].toString());
+
+              for (var rawPur in cloudPurList) {
+                final purMap = rawPur as Map<String, dynamic>;
+                String pId = purMap['id'] ?? '';
+                String intNo = purMap['internalNo'] ?? '';
+                String tag = purMap['sourceTag'] ?? '';
+                bool isWebPur = tag == 'WEB-PORTAL' || pId.startsWith('PUR-WEB');
+
+                if (isWebPur && !currentAppPurIds.contains(pId) && !currentAppPurInternalNos.contains(intNo)) {
+                  ph.purchases.add(Purchase.fromMap(purMap));
+                  currentAppPurIds.add(pId);
+                  currentAppPurInternalNos.add(intNo);
+                  hasAnyNewData = true;
+                }
               }
             }
 
-            // 2. Merge Web Parties
+            // 3. Merge Web Vouchers (Receipts / Payments)
+            if (cloudFiles['vouc.json'] != null) {
+              List<dynamic> cloudVoucList = jsonDecode(cloudFiles['vouc.json'].toString());
+
+              for (var rawVouc in cloudVoucList) {
+                final voucMap = rawVouc as Map<String, dynamic>;
+                String vId = voucMap['id'] ?? '';
+                bool isWebVouc = vId.startsWith('VCT-WEB') || vId.startsWith('PAY-WEB');
+
+                if (isWebVouc && !currentAppVoucIds.contains(vId)) {
+                  ph.vouchers.add(Voucher.fromMap(voucMap));
+                  currentAppVoucIds.add(vId);
+                  hasAnyNewData = true;
+                }
+              }
+            }
+
+            // 4. Merge Web Delivery & Inward Challans
+            if (cloudFiles['s_challan.json'] != null) {
+              List<dynamic> cloudSchList = jsonDecode(cloudFiles['s_challan.json'].toString());
+              for (var rawSch in cloudSchList) {
+                final schMap = rawSch as Map<String, dynamic>;
+                String scId = schMap['id'] ?? '';
+                if (scId.startsWith('SCH-WEB') && !currentAppSchIds.contains(scId)) {
+                  ph.saleChallans.add(SaleChallan.fromMap(schMap));
+                  currentAppSchIds.add(scId);
+                  hasAnyNewData = true;
+                }
+              }
+            }
+            if (cloudFiles['p_challan.json'] != null) {
+              List<dynamic> cloudPchList = jsonDecode(cloudFiles['p_challan.json'].toString());
+              for (var rawPch in cloudPchList) {
+                final pchMap = rawPch as Map<String, dynamic>;
+                String pcId = pchMap['id'] ?? '';
+                if (pcId.startsWith('PCH-WEB') && !currentAppPchIds.contains(pcId)) {
+                  ph.purchaseChallans.add(PurchaseChallan.fromMap(pchMap));
+                  currentAppPchIds.add(pcId);
+                  hasAnyNewData = true;
+                }
+              }
+            }
+
+            // 5. Merge Web Returns (CN / DN)
+            if (cloudFiles['s_return.json'] != null) {
+              List<dynamic> cloudSrList = jsonDecode(cloudFiles['s_return.json'].toString());
+              for (var rawSr in cloudSrList) {
+                final srMap = rawSr as Map<String, dynamic>;
+                String srId = srMap['id'] ?? '';
+                if (srId.startsWith('CN-WEB') && !currentAppSrIds.contains(srId)) {
+                  ph.saleReturns.add(SaleReturn.fromMap(srMap));
+                  currentAppSrIds.add(srId);
+                  hasAnyNewData = true;
+                }
+              }
+            }
+            if (cloudFiles['p_return.json'] != null) {
+              List<dynamic> cloudPrList = jsonDecode(cloudFiles['p_return.json'].toString());
+              for (var rawPr in cloudPrList) {
+                final prMap = rawPr as Map<String, dynamic>;
+                String prId = prMap['id'] ?? '';
+                if (prId.startsWith('DN-WEB') && !currentAppPrIds.contains(prId)) {
+                  ph.purchaseReturns.add(PurchaseReturn.fromMap(prMap));
+                  currentAppPrIds.add(prId);
+                  hasAnyNewData = true;
+                }
+              }
+            }
+
+            // 6. Merge Web Parties
             if (cloudFiles['parts.json'] != null) {
               List<dynamic> cloudPartsList = jsonDecode(cloudFiles['parts.json'].toString());
               Set<String> appPartNames = ph.parties.map((p) => p.name.toUpperCase().trim()).toSet();
-              bool hasNewParts = false;
 
               for (var rawPart in cloudPartsList) {
                 final partMap = rawPart as Map<String, dynamic>;
@@ -127,20 +212,15 @@ class AppSyncEngine {
                 if ((pId.startsWith('PARTY-WEB') || !appPartNames.contains(pName)) && pName.isNotEmpty) {
                   ph.parties.add(Party.fromMap(partMap));
                   appPartNames.add(pName);
-                  hasNewParts = true;
+                  hasAnyNewData = true;
                 }
-              }
-
-              if (hasNewParts) {
-                await ph.save();
               }
             }
 
-            // 3. Merge Web Products
+            // 7. Merge Web Products
             if (cloudFiles['meds.json'] != null) {
               List<dynamic> cloudMedsList = jsonDecode(cloudFiles['meds.json'].toString());
               Set<String> appMedNames = ph.medicines.map((m) => m.name.toUpperCase().trim()).toSet();
-              bool hasNewMeds = false;
 
               for (var rawMed in cloudMedsList) {
                 final medMap = rawMed as Map<String, dynamic>;
@@ -150,13 +230,13 @@ class AppSyncEngine {
                 if ((mId.startsWith('PH-W') || !appMedNames.contains(mName)) && mName.isNotEmpty) {
                   ph.medicines.add(Medicine.fromMap(medMap));
                   appMedNames.add(mName);
-                  hasNewMeds = true;
+                  hasAnyNewData = true;
                 }
               }
+            }
 
-              if (hasNewMeds) {
-                await ph.save();
-              }
+            if (hasAnyNewData) {
+              await ph.save();
             }
 
             await ph.loadAllData();
