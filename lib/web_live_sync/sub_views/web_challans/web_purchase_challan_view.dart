@@ -115,7 +115,7 @@ class _WebPurchaseChallanViewState extends State<WebPurchaseChallanView> {
 
   @override
   Widget build(BuildContext context) {
-    final webPh = Provider.of<PharoahManager?>(context) ?? Provider.of<PharoahWebManager>(context);
+    final webPh = Provider.of<PharoahWebManager>(context);
 
     if (isLoading) {
       return const Center(child: CircularProgressIndicator(color: Color(0xFFD97706)));
@@ -124,7 +124,7 @@ class _WebPurchaseChallanViewState extends State<WebPurchaseChallanView> {
     final query = supplierSearchC.text.trim().toLowerCase();
     final matchingSuppliers = query.isEmpty
         ? <Party>[]
-        : (webPh as dynamic).parties
+        : webPh.parties
             .where((p) =>
                 p.group == "Sundry Creditors" &&
                 (p.name.toLowerCase().contains(query) || p.city.toLowerCase().contains(query)))
@@ -225,8 +225,8 @@ class _WebPurchaseChallanViewState extends State<WebPurchaseChallanView> {
                             final picked = await showDatePicker(
                               context: context,
                               initialDate: selectedDate,
-                              firstDate: WebAppDateLogic.getFYStart((webPh as dynamic).financialYear),
-                              lastDate: WebAppDateLogic.getFYEnd((webPh as dynamic).financialYear),
+                              firstDate: WebAppDateLogic.getFYStart(webPh.financialYear),
+                              lastDate: WebAppDateLogic.getFYEnd(webPh.financialYear),
                             );
                             if (picked != null) setState(() => selectedDate = picked);
                           },
