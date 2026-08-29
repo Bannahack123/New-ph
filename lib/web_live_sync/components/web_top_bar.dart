@@ -63,13 +63,18 @@ class WebTopBar extends StatelessWidget implements PreferredSizeWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                     decoration: BoxDecoration(
-                      color: const Color(0x2610B981),
+                      color: const Color(0x3310B981),
                       borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: Colors.greenAccent, width: 0.5),
+                      border: Border.all(color: Colors.greenAccent, width: 0.8),
                     ),
                     child: const Text(
-                      "#PH-REV-130",
-                      style: TextStyle(color: Colors.greenAccent, fontSize: 8, fontWeight: FontWeight.w900),
+                      "#PH-REV-120 (CHALLAN SUITE)",
+                      style: TextStyle(
+                        color: Colors.greenAccent,
+                        fontSize: 8,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.4,
+                      ),
                     ),
                   ),
                 ],
