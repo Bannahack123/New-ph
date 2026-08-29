@@ -12,6 +12,7 @@ import 'components/web_login_card.dart';
 
 // Sub Views
 import 'sub_views/web_billing/web_new_sale_view.dart';
+import 'web_sale_summary_view.dart';
 import 'web_purchase_entry_view.dart';
 import 'web_challan_stitcher_wizard.dart';
 import 'web_returns_view.dart';
@@ -131,28 +132,35 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
   }
 
   Widget _buildCurrentView(PharoahWebManager webPh) {
-    // A. SALES INVOICING
+    // 1. SALES BILLING (NEW INVOICE)
     if (currentView == "GO_SALE") {
       return WebNewSaleView(
         onBack: () => _navigateToHub("HOME", "MAIN BUSINESS MODULES"),
       );
     }
 
-    // B. PURCHASE INWARD & PURCHASE REGISTER
+    // 2. SALE REGISTER / HISTORY (CONNECTED!)
+    if (currentView == "GO_SALE_REG") {
+      return WebSaleSummaryView(
+        onBack: () => _navigateToHub("HOME", "MAIN BUSINESS MODULES"),
+      );
+    }
+
+    // 3. PURCHASE INWARD & PURCHASE REGISTER
     if (currentView == "GO_PURCHASE" || currentView == "GO_PUR_REG") {
       return WebPurchaseEntryView(
         onBack: () => _navigateToHub("HOME", "MAIN BUSINESS MODULES"),
       );
     }
 
-    // C. CHALLAN TO BILL STITCHER WIZARD
+    // 4. CHALLAN TO BILL STITCHER WIZARD
     if (currentView == "GO_STITCHER") {
       return WebChallanStitcherWizard(
         onBack: () => _navigateToHub("HOME", "MAIN BUSINESS MODULES"),
       );
     }
 
-    // D. RETURNS & REVERSALS (CN / DN / REGISTER)
+    // 5. RETURNS & REVERSALS (CN / DN / REGISTER)
     if (currentView == "GO_CN" || currentView == "GO_DN" || currentView == "GO_BREAKAGE" || currentView == "GO_RET_REG" || currentView == "RETURNS") {
       int tabIdx = 0;
       if (currentView == "GO_DN") tabIdx = 1;
@@ -164,7 +172,7 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
       );
     }
 
-    // E. DELIVERY & INWARD CHALLANS
+    // 6. DELIVERY & INWARD CHALLANS
     if (currentView == "GO_CHALLAN_SALE" || currentView == "GO_CHALLAN_PUR" || currentView == "GO_CHALLAN_SALE_REG" || currentView == "GO_CHALLAN_PUR_REG" || currentView == "CHALLANS") {
       int tabIdx = 0;
       if (currentView == "GO_CHALLAN_PUR" || currentView == "GO_CHALLAN_PUR_REG") tabIdx = 1;
@@ -175,7 +183,7 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
       );
     }
 
-    // F. ACCOUNTS, DAYBOOK & VOUCHERS
+    // 7. ACCOUNTS, DAYBOOK & VOUCHERS
     if (currentView == "GO_RECEIPT" || currentView == "GO_PAYMENT" || currentView == "GO_DAYBOOK" || currentView == "GO_LEDGERS" || currentView == "ACCOUNTS") {
       int tabIdx = 0;
       if (currentView == "GO_PAYMENT") tabIdx = 1;
@@ -187,28 +195,28 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
       );
     }
 
-    // G. PRODUCT / ITEM MASTER
+    // 8. PRODUCT / ITEM MASTER
     if (currentView == "GO_M_ITEM" || currentView == "GO_STOCK" || currentView == "GO_SHORTAGE" || currentView == "INVENTORY") {
       return WebProductMasterView(
         onBack: () => _navigateToHub("HOME", "MAIN BUSINESS MODULES"),
       );
     }
 
-    // H. PARTY & CUSTOMER MASTER
+    // 9. PARTY & CUSTOMER MASTER
     if (currentView == "GO_M_PARTY") {
       return WebPartyMasterView(
         onBack: () => _navigateToHub("HOME", "MAIN BUSINESS MODULES"),
       );
     }
 
-    // I. CENTRAL BATCH MASTER
+    // 10. CENTRAL BATCH MASTER
     if (currentView == "GO_M_BATCH") {
       return WebBatchMasterView(
         onBack: () => _navigateToHub("HOME", "MAIN BUSINESS MODULES"),
       );
     }
 
-    // J. AUXILIARY MASTERS (COMPANIES, SALTS, ROUTES)
+    // 11. AUXILIARY MASTERS (COMPANIES, SALTS, ROUTES)
     if (currentView == "GO_M_COMP" || currentView == "GO_M_SALT" || currentView == "GO_M_ROUTE") {
       int tabIdx = 0;
       if (currentView == "GO_M_SALT") tabIdx = 1;

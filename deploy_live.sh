@@ -1,3 +1,17 @@
+#!/bin/bash
+
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+echo -e "${BLUE}====================================================${NC}"
+echo -e "${BLUE}   🚀 DEPLOYING #PH-REV-122 TO CLOUDFLARE LIVE     ${NC}"
+echo -e "${BLUE}====================================================${NC}\n"
+
+# 1. Update web_top_bar.dart with new live badge #PH-REV-122
+echo -e "${YELLOW}[1/4] Updating Top Bar Badge to #PH-REV-122...${NC}"
+cat << 'TOPBAR_EOF' > lib/web_live_sync/components/web_top_bar.dart
 // FILE: lib/web_live_sync/components/web_top_bar.dart
 
 import 'package:flutter/material.dart';
@@ -182,3 +196,22 @@ class WebTopBar extends StatelessWidget implements PreferredSizeWidget {
     );
   }
 }
+TOPBAR_EOF
+
+# 2. Build Production Web Application
+echo -e "${YELLOW}[2/4] Building Flutter Web Release...${NC}"
+flutter build web -t lib/web_live_sync/web_main.dart --release --base-href "/" --pwa-strategy=none
+
+# 3. Direct Deploy to Cloudflare Pages using Wrangler
+echo -e "\n${YELLOW}[3/4] Uploading Build to Cloudflare Pages...${NC}"
+npx wrangler pages deploy build/web --project-name=pharoah-erp
+
+# 4. Commit and Push to Git repository
+echo -e "\n${YELLOW}[4/4] Syncing to Git Remote Repository...${NC}"
+git add .
+git commit -m "Deploy Web Live Revision #PH-REV-122 with Sale Register" || true
+git push origin main || git push || true
+
+echo -e "\n${BLUE}====================================================${NC}"
+echo -e "${GREEN}  🎉 DEPLOYMENT COMPLETE: https://pharoah-erp.pages.dev${NC}"
+echo -e "${BLUE}====================================================${NC}"
