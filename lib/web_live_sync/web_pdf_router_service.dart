@@ -1,5 +1,4 @@
 // FILE: lib/web_live_sync/web_pdf_router_service.dart
-// Live Version: #PH-LIVE-REV-121
 
 import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
@@ -300,24 +299,6 @@ class WebPdfRouterService {
     );
   }
 
-  static pw.Widget _reportSummaryBox(String label, double value, {PdfColor color = PdfColors.black, bool isBold = false}) {
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.center,
-      children: [
-        pw.Text(label, style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.grey700)),
-        pw.SizedBox(height: 2),
-        pw.Text(
-          "Rs. ${value.toStringAsFixed(2)}",
-          style: pw.TextStyle(
-            fontSize: isBold ? 11 : 9.5,
-            fontWeight: pw.FontWeight.bold,
-            color: color,
-          ),
-        ),
-      ],
-    );
-  }
-
   // ===========================================================================
   // 3. PURCHASE INWARD SLIP (A4 LANDSCAPE)
   // ===========================================================================
@@ -416,7 +397,134 @@ class WebPdfRouterService {
   }
 
   // ===========================================================================
-  // 4. BULK ZIP DOWNLOAD (FOR STITCHER WIZARD & AUDIT BATCH)
+  // 4. PURCHASE REGISTER SUMMARY REPORT (A4 LANDSCAPE MULTI-PAGE)
+  // ===========================================================================
+  static Future<Uint8List> generatePurchaseReportBytes({
+    required List<Purchase> purchases,
+    required CompanyProfile shop,
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    final pdf = pw.Document();
+    String shopName = shop.name.toUpperCase();
+
+    double totalTaxable = 0.0;
+    double totalGst = 0.0;
+    double netTotal = 0.0;
+
+    for (var p in purchases) {
+      double pTaxable = p.items.fold(0.0, (sum, it) => sum + (it.purchaseRate * it.qty - it.discountRupees));
+      totalTaxable += pTaxable;
+      totalGst += (p.totalAmount - pTaxable);
+      netTotal += p.totalAmount;
+    }
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4.landscape,
+        margin: const pw.EdgeInsets.all(20),
+        header: (context) => pw.Column(
+          children: [
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(shopName, style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: PdfColors.orange900)),
+                    pw.Text("Purchase Register & Input Tax Credit (ITC) Summary", style: const pw.TextStyle(fontSize: 11, color: PdfColors.grey700)),
+                    pw.Text("GSTIN: ${shop.gstin} | DL: ${shop.dlNo}", style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+                  ],
+                ),
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    pw.Text("Period: ${DateFormat('dd/MM/yyyy').format(from)} to ${DateFormat('dd/MM/yyyy').format(to)}", style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                    pw.Text("Total Inward Entries: ${purchases.length}", style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
+                  ],
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 6),
+            pw.Divider(thickness: 1, color: PdfColors.orange900),
+            pw.SizedBox(height: 6),
+          ],
+        ),
+        build: (context) => [
+          pw.TableHelper.fromTextArray(
+            headerStyle: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.orange900),
+            cellStyle: const pw.TextStyle(fontSize: 8),
+            columnWidths: {
+              0: const pw.FixedColumnWidth(60),
+              1: const pw.FixedColumnWidth(75),
+              2: const pw.FixedColumnWidth(75),
+              3: const pw.FlexColumnWidth(3),
+              4: const pw.FixedColumnWidth(60),
+              5: const pw.FixedColumnWidth(75),
+              6: const pw.FixedColumnWidth(70),
+              7: const pw.FixedColumnWidth(80),
+            },
+            headers: ['DATE', 'SUPPLIER BILL', 'ENTRY ID', 'DISTRIBUTOR / SUPPLIER', 'MODE', 'TAXABLE (Rs)', 'GST ITC (Rs)', 'NET TOTAL (Rs)'],
+            data: purchases.map((p) {
+              double pTaxable = p.items.fold(0.0, (sum, it) => sum + (it.purchaseRate * it.qty - it.discountRupees));
+              double gst = p.totalAmount - pTaxable;
+              return [
+                DateFormat('dd/MM/yyyy').format(p.date),
+                p.billNo,
+                p.internalNo.isNotEmpty ? p.internalNo : "PUR-REC",
+                p.distributorName,
+                p.paymentMode.toUpperCase(),
+                pTaxable.toStringAsFixed(2),
+                gst.toStringAsFixed(2),
+                p.totalAmount.toStringAsFixed(2),
+              ];
+            }).toList(),
+          ),
+          pw.SizedBox(height: 18),
+          pw.Container(
+            padding: const pw.EdgeInsets.all(12),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.grey100,
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+              border: pw.Border.all(color: PdfColors.grey300),
+            ),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                _reportSummaryBox("TOTAL INWARD BILLS", purchases.length.toDouble(), color: PdfColors.orange900, isInt: true),
+                _reportSummaryBox("TAXABLE PURCHASES", totalTaxable, color: PdfColors.blueGrey900),
+                _reportSummaryBox("INPUT TAX CREDIT (ITC)", totalGst, color: PdfColors.green900),
+                _reportSummaryBox("GRAND INWARD TOTAL", netTotal, color: PdfColors.orange900, isBold: true),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return pdf.save();
+  }
+
+  static Future<void> printPurchaseReport({required List<Purchase> purchases, required CompanyProfile shop, required DateTime from, required DateTime to}) async {
+    final bytes = await generatePurchaseReportBytes(purchases: purchases, shop: shop, from: from, to: to);
+    await Printing.layoutPdf(
+      onLayout: (format) async => bytes,
+      name: 'PurchaseReport_${DateFormat('ddMMMyy').format(from)}_to_${DateFormat('ddMMMyy').format(to)}',
+      format: PdfPageFormat.a4.landscape,
+    );
+  }
+
+  static Future<void> downloadPurchaseReport({required List<Purchase> purchases, required CompanyProfile shop, required DateTime from, required DateTime to}) async {
+    final bytes = await generatePurchaseReportBytes(purchases: purchases, shop: shop, from: from, to: to);
+    await Printing.sharePdf(
+      bytes: bytes,
+      filename: 'PurchaseReport_${DateFormat('ddMMMyy').format(from)}_to_${DateFormat('ddMMMyy').format(to)}.pdf',
+    );
+  }
+
+  // ===========================================================================
+  // 5. BULK ZIP DOWNLOAD (FOR STITCHER WIZARD & AUDIT BATCH)
   // ===========================================================================
   static Future<void> downloadBulkZip({
     required List<dynamic> documents,
@@ -468,6 +576,24 @@ class WebPdfRouterService {
   static pw.Widget _hBox(double w, bool b, pw.Widget child) => pw.Container(width: w, height: 105, padding: const pw.EdgeInsets.all(5), decoration: pw.BoxDecoration(border: pw.Border(right: pw.BorderSide(width: b ? 0.5 : 0), bottom: const pw.BorderSide(width: 0.5))), child: child);
   static pw.Widget _tCol(String t, double w, {bool isLast = false, bool isLeft = false}) => pw.Container(width: w, height: 20, alignment: isLeft ? pw.Alignment.centerLeft : pw.Alignment.center, padding: const pw.EdgeInsets.only(left: 5), decoration: pw.BoxDecoration(border: pw.Border(right: pw.BorderSide(width: isLast ? 0 : 0.5), bottom: const pw.BorderSide(width: 0.5))), child: pw.Text(t, style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold)));
   static pw.Widget _cell(String t, double w) => pw.Container(width: w, height: 18, alignment: pw.Alignment.center, decoration: const pw.BoxDecoration(border: pw.Border(right: pw.BorderSide(width: 0.2, color: PdfColors.grey))), child: pw.Text(t, style: const pw.TextStyle(fontSize: 7.5)));
+
+  static pw.Widget _reportSummaryBox(String label, double value, {PdfColor color = PdfColors.black, bool isBold = false, bool isInt = false}) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.center,
+      children: [
+        pw.Text(label, style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.grey700)),
+        pw.SizedBox(height: 2),
+        pw.Text(
+          isInt ? "${value.toInt()}" : "Rs. ${value.toStringAsFixed(2)}",
+          style: pw.TextStyle(
+            fontSize: isBold ? 11 : 9.5,
+            fontWeight: pw.FontWeight.bold,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
 
   static pw.Widget _buildSaleFooter(String shopName, Sale sale, bool isLocal) {
     double taxableTotal = sale.items.fold(0.0, (sum, i) => sum + (i.qty * i.rate));
