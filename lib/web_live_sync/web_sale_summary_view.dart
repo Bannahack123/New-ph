@@ -3,11 +3,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:printing/printing.dart';
+import 'package:pdf/pdf.dart';
+
 import 'web_models.dart';
 import 'pharoah_web_manager.dart';
-import 'web_app_date_logic.dart';
 import 'web_pdf_router_service.dart';
 import 'sub_views/web_billing/web_new_sale_view.dart';
+import '../../app_date_logic.dart';
+import '../../models.dart';
+import '../../pdf/sale_report_pdf.dart';
 
 class WebSaleSummaryView extends StatefulWidget {
   final VoidCallback onBack;
@@ -24,7 +29,6 @@ class _WebSaleSummaryViewState extends State<WebSaleSummaryView> {
   String searchQuery = "";
   bool _isInit = false;
 
-  // Selection & Batch Action State
   bool isSelectionMode = false;
   List<String> selectedBillIds = [];
   bool isProcessing = false;
@@ -39,7 +43,7 @@ class _WebSaleSummaryViewState extends State<WebSaleSummaryView> {
       final now = DateTime.now();
       toDate = DateTime(now.year, now.month, now.day);
       DateTime thirtyDaysAgo = toDate.subtract(const Duration(days: 30));
-      DateTime fyStart = WebAppDateLogic.getFYStart(webPh.financialYear);
+      DateTime fyStart = AppDateLogic.getFYStart(webPh.financialYear);
       fromDate = thirtyDaysAgo.isBefore(fyStart) ? fyStart : thirtyDaysAgo;
       _isInit = true;
     }
@@ -101,7 +105,7 @@ class _WebSaleSummaryViewState extends State<WebSaleSummaryView> {
     final fDateOnly = _dateOnly(fromDate);
     final tDateOnly = _dateOnly(toDate);
 
-    // Robust Date & Status Filter
+    // Precise Date-Only & Active status match (Direct from live memory)
     List<Sale> filteredSales = webPh.sales.reversed.where((s) {
       final sDateOnly = _dateOnly(s.date);
       bool dateMatch = !sDateOnly.isBefore(fDateOnly) && !sDateOnly.isAfter(tDateOnly);
@@ -113,7 +117,6 @@ class _WebSaleSummaryViewState extends State<WebSaleSummaryView> {
       return isActive && dateMatch && searchMatch;
     }).toList();
 
-    // Calculations
     double totalTaxable = 0.0;
     double totalTax = 0.0;
     double netTotal = 0.0;
@@ -205,8 +208,8 @@ class _WebSaleSummaryViewState extends State<WebSaleSummaryView> {
                             const SizedBox(height: 12),
                             Text(
                               webPh.sales.isEmpty 
-                                ? "No invoices recorded yet in this store."
-                                : "No invoices found for selected date range (${DateFormat('dd/MM/yy').format(fromDate)} - ${DateFormat('dd/MM/yy').format(toDate)}).",
+                                ? "No invoices recorded yet in this store database."
+                                : "No invoices found between ${DateFormat('dd/MM/yyyy').format(fromDate)} and ${DateFormat('dd/MM/yyyy').format(toDate)}.",
                               style: const TextStyle(color: Colors.white38, fontSize: 12),
                               textAlign: TextAlign.center,
                             ),
@@ -470,7 +473,7 @@ class _WebSaleSummaryViewState extends State<WebSaleSummaryView> {
         const SizedBox(height: 3),
         Row(
           children: [
-            Text("Bill: ${s.billNo} • ${WebAppDateLogic.format(s.date)}", style: const TextStyle(fontSize: 10.5, color: Colors.white54)),
+            Text("Bill: ${s.billNo} • ${DateFormat('dd/MM/yyyy').format(s.date)}", style: const TextStyle(fontSize: 10.5, color: Colors.white54)),
             const SizedBox(width: 8),
             if (s.linkedChallanIds.isNotEmpty)
               _badge("MERGED", Colors.orangeAccent),
@@ -501,8 +504,8 @@ class _WebSaleSummaryViewState extends State<WebSaleSummaryView> {
         DateTime? p = await showDatePicker(
           context: context,
           initialDate: d,
-          firstDate: WebAppDateLogic.getFYStart(fy),
-          lastDate: WebAppDateLogic.getFYEnd(fy),
+          firstDate: AppDateLogic.getFYStart(fy),
+          lastDate: AppDateLogic.getFYEnd(fy),
         ); 
         if (p != null) onPick(p); 
       },
@@ -535,7 +538,7 @@ class _WebSaleSummaryViewState extends State<WebSaleSummaryView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: Colors.white54, fontSize: 9.5, fontWeight: FontWeight.bold, letterSpacing: 0.5)), 
+        Text(label, style: const TextStyle(color: Colors.white54, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5)), 
         const SizedBox(height: 4),
         Text("₹${val.toStringAsFixed(2)}", style: TextStyle(color: color, fontWeight: FontWeight.w900, fontSize: isNet ? 18 : 12.5)),
       ],
@@ -561,15 +564,6 @@ class _WebSaleSummaryViewState extends State<WebSaleSummaryView> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
             onPressed: () { 
-              if (sale.linkedChallanIds.isNotEmpty) {
-                for (var cid in sale.linkedChallanIds) {
-                  int idx = webPh.saleChallans.indexWhere((ch) => ch.id == cid);
-                  if (idx != -1) {
-                    webPh.saleChallans[idx].status = "Pending";
-                  }
-                }
-              }
-
               webPh.deleteSale(sale.id); 
               Navigator.pop(c); 
 

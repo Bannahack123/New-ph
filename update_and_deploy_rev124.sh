@@ -1,3 +1,791 @@
+#!/bin/bash
+
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+echo -e "${BLUE}====================================================${NC}"
+echo -e "${BLUE}   🚀 PHAROAH WEB UPGRADE & DEPLOY: #PH-REV-124    ${NC}"
+echo -e "${BLUE}====================================================${NC}\n"
+
+# 1. Update Top Bar with Single Verification Badge (#PH-REV-124)
+echo -e "${YELLOW}[1/4] Setting Top Bar Badge to #PH-REV-124...${NC}"
+cat << 'TOPBAR_EOF' > lib/web_live_sync/components/web_top_bar.dart
+// FILE: lib/web_live_sync/components/web_top_bar.dart
+
+import 'package:flutter/material.dart';
+import '../pharoah_web_manager.dart';
+
+class WebTopBar extends StatelessWidget implements PreferredSizeWidget {
+  final PharoahWebManager webPh;
+  final ValueChanged<String>? onSearchChanged;
+
+  const WebTopBar({
+    super.key,
+    required this.webPh,
+    this.onSearchChanged,
+  });
+
+  @override
+  Size get preferredSize => const Size.fromHeight(60);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 60,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: const BoxDecoration(
+        color: Color(0xFF0F172A),
+        border: Border(bottom: BorderSide(color: Colors.white10)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: const BoxDecoration(
+              color: Color(0x332563EB),
+              borderRadius: BorderRadius.all(Radius.circular(10)),
+            ),
+            child: const Icon(Icons.storefront_rounded, color: Color(0xFF38BDF8), size: 20),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                webPh.companyName.toUpperCase(),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 14,
+                  color: Colors.white,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              Row(
+                children: [
+                  Text(
+                    "FY: ${webPh.financialYear}",
+                    style: const TextStyle(
+                      fontSize: 9.5,
+                      color: Color(0xFF38BDF8),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                    decoration: BoxDecoration(
+                      color: const Color(0x2610B981),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.greenAccent, width: 0.5),
+                    ),
+                    child: const Text(
+                      "#PH-REV-124",
+                      style: TextStyle(color: Colors.greenAccent, fontSize: 8, fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Container(
+              height: 36,
+              constraints: const BoxConstraints(maxWidth: 380),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E293B),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.white12),
+              ),
+              child: TextField(
+                onChanged: onSearchChanged,
+                style: const TextStyle(color: Colors.white, fontSize: 11.5),
+                decoration: const InputDecoration(
+                  hintText: "Search Medicines, Customers, Invoices...",
+                  hintStyle: TextStyle(color: Colors.white38, fontSize: 11),
+                  prefixIcon: Icon(Icons.search_rounded, color: Color(0xFF38BDF8), size: 16),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(vertical: 9),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0x1F10B981),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0x4D10B981)),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.circle, color: Colors.greenAccent, size: 7),
+                SizedBox(width: 6),
+                Text(
+                  "LIVE CLOUD",
+                  style: TextStyle(
+                    color: Colors.greenAccent,
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          IconButton(
+            icon: const Icon(Icons.sync_rounded, color: Colors.white70, size: 20),
+            tooltip: "Refresh Live Data",
+            onPressed: () {
+              webPh.refreshStoreData();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text("🔄 Live Cloud Database Refreshed!"),
+                  duration: Duration(seconds: 1),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 20),
+            tooltip: "Sign Out",
+            onPressed: () => _confirmSignOut(context, webPh),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmSignOut(BuildContext context, PharoahWebManager webPh) {
+    showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: const BorderSide(color: Colors.white10),
+        ),
+        title: const Text("Sign Out Workstation?", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+        content: const Text(
+          "Are you sure you want to disconnect from this store workstation?",
+          style: TextStyle(color: Colors.white70, fontSize: 12),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c),
+            child: const Text("CANCEL", style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              Navigator.pop(c);
+              webPh.signOut();
+            },
+            child: const Text("SIGN OUT", style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+TOPBAR_EOF
+
+# 2. Update WebSaleSummaryView with direct lib/ imports & strict Date-Only Matching
+echo -e "${YELLOW}[2/4] Connecting lib/ core modules to WebSaleSummaryView...${NC}"
+cat << 'SUMMARY_EOF' > lib/web_live_sync/web_sale_summary_view.dart
+// FILE: lib/web_live_sync/web_sale_summary_view.dart
+
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
+import 'package:printing/printing.dart';
+import 'package:pdf/pdf.dart';
+
+import 'web_models.dart';
+import 'pharoah_web_manager.dart';
+import 'web_pdf_router_service.dart';
+import 'sub_views/web_billing/web_new_sale_view.dart';
+import '../../app_date_logic.dart';
+import '../../models.dart';
+import '../../pdf/sale_report_pdf.dart';
+
+class WebSaleSummaryView extends StatefulWidget {
+  final VoidCallback onBack;
+
+  const WebSaleSummaryView({super.key, required this.onBack});
+
+  @override
+  State<WebSaleSummaryView> createState() => _WebSaleSummaryViewState();
+}
+
+class _WebSaleSummaryViewState extends State<WebSaleSummaryView> {
+  DateTime fromDate = DateTime.now();
+  DateTime toDate = DateTime.now();
+  String searchQuery = "";
+  bool _isInit = false;
+
+  bool isSelectionMode = false;
+  List<String> selectedBillIds = [];
+  bool isProcessing = false;
+  double progressValue = 0.0;
+  String progressText = "";
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_isInit) {
+      final webPh = Provider.of<PharoahWebManager>(context, listen: false);
+      final now = DateTime.now();
+      toDate = DateTime(now.year, now.month, now.day);
+      DateTime thirtyDaysAgo = toDate.subtract(const Duration(days: 30));
+      DateTime fyStart = AppDateLogic.getFYStart(webPh.financialYear);
+      fromDate = thirtyDaysAgo.isBefore(fyStart) ? fyStart : thirtyDaysAgo;
+      _isInit = true;
+    }
+  }
+
+  DateTime _dateOnly(DateTime dt) => DateTime(dt.year, dt.month, dt.day);
+
+  Future<void> _handleBatchZipExport(PharoahWebManager webPh) async {
+    if (selectedBillIds.isEmpty) return;
+
+    setState(() { 
+      isProcessing = true; 
+      progressText = "Preparing Invoices ZIP Bundle..."; 
+      progressValue = 0.0;
+    });
+
+    try {
+      List<Sale> billsToZip = webPh.sales.where((s) => selectedBillIds.contains(s.id)).toList();
+      final shopProfile = CompanyProfile.fromMap(webPh.companyProfile);
+
+      await WebPdfRouterService.downloadBulkZip(
+        documents: billsToZip,
+        shop: shopProfile,
+        config: webPh.appConfig,
+        onProgress: (v, n) {
+          if (mounted) {
+            setState(() {
+              progressValue = v;
+              progressText = "Packing: $n";
+            });
+          }
+        },
+      );
+
+      setState(() { 
+        isProcessing = false; 
+        isSelectionMode = false; 
+        selectedBillIds.clear(); 
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("✅ Invoice ZIP Bundle exported successfully!"), backgroundColor: Colors.green)
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => isProcessing = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Export Error: $e"), backgroundColor: Colors.redAccent));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final webPh = Provider.of<PharoahWebManager>(context);
+    final activeShop = CompanyProfile.fromMap(webPh.companyProfile);
+
+    final fDateOnly = _dateOnly(fromDate);
+    final tDateOnly = _dateOnly(toDate);
+
+    // Precise Date-Only & Active status match (Direct from live memory)
+    List<Sale> filteredSales = webPh.sales.reversed.where((s) {
+      final sDateOnly = _dateOnly(s.date);
+      bool dateMatch = !sDateOnly.isBefore(fDateOnly) && !sDateOnly.isAfter(tDateOnly);
+      bool searchMatch = searchQuery.isEmpty ||
+          s.billNo.toLowerCase().contains(searchQuery.toLowerCase()) || 
+          s.partyName.toLowerCase().contains(searchQuery.toLowerCase());
+      bool isActive = s.status.isEmpty || s.status.toLowerCase() == "active";
+
+      return isActive && dateMatch && searchMatch;
+    }).toList();
+
+    double totalTaxable = 0.0;
+    double totalTax = 0.0;
+    double netTotal = 0.0;
+    double cashTotal = 0.0;
+    double creditTotal = 0.0;
+
+    for (var s in filteredSales) {
+      double sTax = s.items.fold(0.0, (sum, it) => sum + (it.cgst + it.sgst + it.igst));
+      totalTax += sTax; 
+      totalTaxable += (s.totalAmount - sTax); 
+      netTotal += s.totalAmount;
+      if (s.paymentMode.toUpperCase() == 'CASH') {
+        cashTotal += s.totalAmount;
+      } else {
+        creditTotal += s.totalAmount;
+      }
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Stack(
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // --- 1. TOP HEADER BAR ---
+              _buildHeaderBar(webPh, filteredSales, activeShop),
+
+              const SizedBox(height: 16),
+
+              // --- 2. FILTER & SEARCH SECTION ---
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E293B),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(child: _dateTile("FROM DATE", fromDate, (d) => setState(() => fromDate = d), webPh.financialYear)),
+                        const SizedBox(width: 12),
+                        Expanded(child: _dateTile("TO DATE", toDate, (d) => setState(() => toDate = d), webPh.financialYear)),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      style: const TextStyle(color: Colors.white, fontSize: 12.5),
+                      decoration: InputDecoration(
+                        hintText: "Search by Bill No (e.g. INV-101) or Party / Customer Name...", 
+                        hintStyle: const TextStyle(color: Colors.white38, fontSize: 11.5),
+                        prefixIcon: const Icon(Icons.search, color: Color(0xFF38BDF8), size: 18),
+                        suffixIcon: searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear_rounded, color: Colors.white54, size: 16),
+                                onPressed: () => setState(() => searchQuery = ""),
+                              )
+                            : null,
+                        border: InputBorder.none,
+                        filled: true,
+                        fillColor: Colors.black26,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onChanged: (v) => setState(() => searchQuery = v),
+                    ),
+                  ],
+                ),
+              ),
+              
+              const SizedBox(height: 16),
+
+              // --- 3. INVOICES LIST ---
+              Expanded(
+                child: filteredSales.isEmpty 
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(40),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.receipt_long_outlined, size: 40, color: Colors.white24),
+                            const SizedBox(height: 12),
+                            Text(
+                              webPh.sales.isEmpty 
+                                ? "No invoices recorded yet in this store database."
+                                : "No invoices found between ${DateFormat('dd/MM/yyyy').format(fromDate)} and ${DateFormat('dd/MM/yyyy').format(toDate)}.",
+                              style: const TextStyle(color: Colors.white38, fontSize: 12),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: filteredSales.length,
+                      itemBuilder: (c, i) {
+                        final s = filteredSales[i];
+                        final p = webPh.parties.firstWhere(
+                          (x) => x.name == s.partyName, 
+                          orElse: () => Party(id: "temp", name: s.partyName, gst: s.partyGstin, state: s.partyState, address: s.partyAddress, city: s.partyCity, phone: s.partyPhone, email: s.partyEmail, dl: s.partyDl),
+                        );
+
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1E293B),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isSelectionMode && selectedBillIds.contains(s.id) ? const Color(0xFF38BDF8) : Colors.white10,
+                              width: isSelectionMode && selectedBillIds.contains(s.id) ? 1.5 : 1.0,
+                            ),
+                          ),
+                          child: ListTile(
+                            dense: true,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                            
+                            leading: isSelectionMode 
+                              ? Checkbox(
+                                  value: selectedBillIds.contains(s.id), 
+                                  activeColor: const Color(0xFF38BDF8),
+                                  onChanged: (v) => setState(() => v! ? selectedBillIds.add(s.id) : selectedBillIds.remove(s.id)),
+                                )
+                              : Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: const BoxDecoration(
+                                    color: Color(0x262563EB),
+                                    borderRadius: BorderRadius.all(Radius.circular(8)),
+                                  ),
+                                  child: const Icon(Icons.receipt_long_rounded, color: Color(0xFF38BDF8), size: 18),
+                                ),
+
+                            title: Row(
+                              children: [
+                                Text(s.partyName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 13)),
+                                const SizedBox(width: 8),
+                                _badge(s.paymentMode.toUpperCase(), s.paymentMode.toUpperCase() == "CASH" ? Colors.greenAccent : Colors.blueAccent),
+                              ],
+                            ),
+                            subtitle: _buildSubtitleWidget(s),
+                            
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min, 
+                              children: [
+                                Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      "₹${s.totalAmount.toStringAsFixed(2)}",
+                                      style: const TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.w900, fontSize: 14),
+                                    ),
+                                    Text(
+                                      "${s.items.length} items",
+                                      style: const TextStyle(color: Colors.white38, fontSize: 9.5),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(width: 14),
+                                
+                                if (!isSelectionMode) ...[
+                                  IconButton(
+                                    icon: const Icon(Icons.print_outlined, color: Color(0xFF38BDF8), size: 18), 
+                                    tooltip: "Print Landscape Invoice",
+                                    onPressed: () => WebPdfRouterService.printSaleInvoice(sale: s, party: p, shop: activeShop, config: webPh.appConfig),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.download_rounded, color: Colors.greenAccent, size: 18), 
+                                    tooltip: "Download PDF File",
+                                    onPressed: () => WebPdfRouterService.downloadSalePdf(sale: s, party: p, shop: activeShop, config: webPh.appConfig),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.edit_note_rounded, color: Colors.orangeAccent, size: 20), 
+                                    tooltip: "Edit / Modify Bill",
+                                    onPressed: () {
+                                      Navigator.push(context, MaterialPageRoute(builder: (ctx) => Scaffold(
+                                        backgroundColor: const Color(0xFF0F172A),
+                                        body: WebNewSaleView(
+                                          onBack: () => Navigator.pop(ctx),
+                                          initialParty: p,
+                                          initialBillNo: s.billNo,
+                                          initialDate: s.date,
+                                          initialMode: s.paymentMode,
+                                          existingItems: s.items,
+                                          linkedChallanIds: s.linkedChallanIds,
+                                          modifySaleId: s.id,
+                                          isReadOnly: false,
+                                        ),
+                                      )));
+                                    },
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 18), 
+                                    tooltip: "Delete Bill (Reverse Stock)",
+                                    onPressed: () => _confirmDelete(webPh, s),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+              ),
+              
+              const SizedBox(height: 16),
+
+              // --- 4. BOTTOM SUMMARY STRIP ---
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF19243B), Color(0xFF0F172A)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFF2563EB).withAlpha(100), width: 1.2),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween, 
+                  children: [
+                    _botCol("CASH SALES", cashTotal, color: Colors.greenAccent),
+                    _botCol("CREDIT SALES", creditTotal, color: Colors.blueAccent),
+                    _botCol("TAXABLE AMOUNT", totalTaxable, color: Colors.white70), 
+                    _botCol("TOTAL OUTPUT GST", totalTax, color: Colors.orangeAccent), 
+                    _botCol("NET TURNOVER", netTotal, isNet: true, color: Colors.greenAccent),
+                  ],
+                ),
+              ),
+
+              // --- 5. BATCH ZIP ACTION BAR ---
+              if (isSelectionMode && selectedBillIds.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFF59E0B), 
+                      foregroundColor: Colors.black, 
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () => _handleBatchZipExport(webPh),
+                    icon: const Icon(Icons.folder_zip_rounded, size: 18),
+                    label: Text("DOWNLOAD ${selectedBillIds.length} SELECTED INVOICES AS ZIP", style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12)),
+                  ),
+                ),
+              ],
+            ],
+          ),
+
+          if (isProcessing)
+            Container(
+              color: Colors.black87,
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(color: Color(0xFFF59E0B)),
+                    const SizedBox(height: 20),
+                    Text(progressText, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 10),
+                    SizedBox(width: 200, child: LinearProgressIndicator(value: progressValue, color: const Color(0xFFF59E0B), backgroundColor: Colors.white10)),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderBar(PharoahWebManager webPh, List<Sale> filteredSales, CompanyProfile activeShop) {
+    return Row(
+      children: [
+        ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.white12,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            elevation: 0,
+          ),
+          onPressed: widget.onBack,
+          icon: const Icon(Icons.arrow_back_rounded, size: 16),
+          label: const Text("BACK", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+        ),
+        const SizedBox(width: 15),
+        const Icon(Icons.description_outlined, color: Color(0xFF38BDF8), size: 22),
+        const SizedBox(width: 10),
+        const Text(
+          "SALES REGISTER / AUDIT",
+          style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+        ),
+        const Spacer(),
+
+        if (filteredSales.isNotEmpty) ...[
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0F766E),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
+            label: const Text("PRINT SUMMARY REPORT", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10)),
+            onPressed: () => WebPdfRouterService.printSaleReport(sales: filteredSales, shop: activeShop, from: fromDate, to: toDate),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1E293B),
+              foregroundColor: Colors.cyanAccent,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: const BorderSide(color: Colors.cyanAccent)),
+            ),
+            icon: const Icon(Icons.download_rounded, size: 16),
+            label: const Text("DOWNLOAD REPORT PDF", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10)),
+            onPressed: () => WebPdfRouterService.downloadSaleReport(sales: filteredSales, shop: activeShop, from: fromDate, to: toDate),
+          ),
+          const SizedBox(width: 8),
+        ],
+
+        if (filteredSales.isNotEmpty)
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isSelectionMode ? const Color(0xFFEF4444) : const Color(0xFF2563EB),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            icon: Icon(isSelectionMode ? Icons.close_rounded : Icons.checklist_rtl_rounded, size: 16),
+            label: Text(isSelectionMode ? "CANCEL" : "SELECT BILLS (ZIP)", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10)),
+            onPressed: () => setState(() { 
+              isSelectionMode = !isSelectionMode; 
+              selectedBillIds.clear(); 
+            }),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildSubtitleWidget(Sale s) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 3),
+        Row(
+          children: [
+            Text("Bill: ${s.billNo} • ${DateFormat('dd/MM/yyyy').format(s.date)}", style: const TextStyle(fontSize: 10.5, color: Colors.white54)),
+            const SizedBox(width: 8),
+            if (s.linkedChallanIds.isNotEmpty)
+              _badge("MERGED", Colors.orangeAccent),
+            if (s.sourceTag.isNotEmpty)
+              _badge("IMPORT: ${s.sourceTag}", Colors.lightBlueAccent),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _badge(String text, Color color) {
+    return Container(
+      margin: const EdgeInsets.only(right: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+      decoration: BoxDecoration(
+        color: color.withAlpha(40),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color, width: 0.5),
+      ),
+      child: Text(text, style: TextStyle(color: color, fontSize: 7.5, fontWeight: FontWeight.w900)),
+    );
+  }
+
+  Widget _dateTile(String label, DateTime d, Function(DateTime) onPick, String fy) {
+    return InkWell(
+      onTap: () async { 
+        DateTime? p = await showDatePicker(
+          context: context,
+          initialDate: d,
+          firstDate: AppDateLogic.getFYStart(fy),
+          lastDate: AppDateLogic.getFYEnd(fy),
+        ); 
+        if (p != null) onPick(p); 
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), 
+        decoration: BoxDecoration(
+          color: Colors.black26, 
+          border: Border.all(color: Colors.white12), 
+          borderRadius: BorderRadius.circular(8),
+        ), 
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start, 
+              children: [
+                Text(label, style: const TextStyle(fontSize: 8.5, color: Colors.white54, fontWeight: FontWeight.bold)), 
+                const SizedBox(height: 2),
+                Text(DateFormat('dd/MM/yyyy').format(d), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11.5)),
+              ],
+            ),
+            const Icon(Icons.calendar_month_rounded, color: Color(0xFF38BDF8), size: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _botCol(String label, double val, {bool isNet = false, Color color = Colors.white}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(color: Colors.white54, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5)), 
+        const SizedBox(height: 4),
+        Text("₹${val.toStringAsFixed(2)}", style: TextStyle(color: color, fontWeight: FontWeight.w900, fontSize: isNet ? 18 : 12.5)),
+      ],
+    );
+  }
+
+  void _confirmDelete(PharoahWebManager webPh, Sale sale) {
+    showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Colors.white12)),
+        title: const Text("Delete Invoice?", style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+        content: Text(
+          "Are you sure you want to delete '${sale.billNo}'?\n\n• Stock will be automatically reversed.\n• Any linked delivery challans will be reverted back to 'Pending'.",
+          style: const TextStyle(color: Colors.white70, fontSize: 11.5, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c),
+            child: const Text("CANCEL", style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+            onPressed: () { 
+              webPh.deleteSale(sale.id); 
+              Navigator.pop(c); 
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text("🗑️ Invoice ${sale.billNo} Deleted & Stock Reversed!"), backgroundColor: Colors.redAccent)
+              );
+            }, 
+            child: const Text("YES, DELETE", style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+SUMMARY_EOF
+
+# 3. Update WebNewSaleView with Normalized Date Save
+echo -e "${YELLOW}[3/4] Updating WebNewSaleView with normalized date saving...${NC}"
+cat << 'SALEVIEW_EOF' > lib/web_live_sync/sub_views/web_billing/web_new_sale_view.dart
 // FILE: lib/web_live_sync/sub_views/web_billing/web_new_sale_view.dart
 
 import 'package:flutter/material.dart';
@@ -1004,3 +1792,16 @@ class _WebNewSaleViewState extends State<WebNewSaleView> {
     ]),
   );
 }
+SALEVIEW_EOF
+
+# 4. Compile Web App and Push to Cloudflare & Git
+echo -e "${YELLOW}[4/4] Compiling Web Workstation Bundle (#PH-REV-124)...${NC}"
+flutter build web -t lib/web_live_sync/web_main.dart --release --base-href "/" --pwa-strategy=none
+
+git add .
+git commit -m "Deploy Web Revision #PH-REV-124 with Universal lib imports & normalized dates" || true
+git push origin main || true
+
+echo -e "\n${BLUE}====================================================${NC}"
+echo -e "${GREEN}  🎉 CODE COMPILED & COMMITTED: #PH-REV-124${NC}"
+echo -e "${BLUE}====================================================${NC}"
