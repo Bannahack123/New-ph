@@ -1,5 +1,4 @@
 // FILE: lib/web_live_sync/web_sale_summary_view.dart
-// Live Version: #PH-LIVE-REV-122
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -25,21 +24,20 @@ class _WebSaleSummaryViewState extends State<WebSaleSummaryView> {
   String searchQuery = "";
   bool _isInit = false;
 
-  // --- SELECTION & PROCESSING STATE ---
+  // Selection & Batch Action State
   bool isSelectionMode = false;
   List<String> selectedBillIds = [];
   bool isProcessing = false;
   double progressValue = 0.0;
   String progressText = "";
 
-  static const String currentTestId = "#PH-LIVE-REV-122";
-
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_isInit) {
       final webPh = Provider.of<PharoahWebManager>(context, listen: false);
-      toDate = WebAppDateLogic.getSmartDate(webPh.financialYear);
+      final now = DateTime.now();
+      toDate = DateTime(now.year, now.month, now.day);
       DateTime thirtyDaysAgo = toDate.subtract(const Duration(days: 30));
       DateTime fyStart = WebAppDateLogic.getFYStart(webPh.financialYear);
       fromDate = thirtyDaysAgo.isBefore(fyStart) ? fyStart : thirtyDaysAgo;
@@ -47,9 +45,8 @@ class _WebSaleSummaryViewState extends State<WebSaleSummaryView> {
     }
   }
 
-  // ===========================================================================
-  // 📦 BATCH ZIP EXPORT (Challan Stitcher & Audit Style)
-  // ===========================================================================
+  DateTime _dateOnly(DateTime dt) => DateTime(dt.year, dt.month, dt.day);
+
   Future<void> _handleBatchZipExport(PharoahWebManager webPh) async {
     if (selectedBillIds.isEmpty) return;
 
@@ -101,16 +98,22 @@ class _WebSaleSummaryViewState extends State<WebSaleSummaryView> {
     final webPh = Provider.of<PharoahWebManager>(context);
     final activeShop = CompanyProfile.fromMap(webPh.companyProfile);
 
-    // 1. Filter Logic
+    final fDateOnly = _dateOnly(fromDate);
+    final tDateOnly = _dateOnly(toDate);
+
+    // Robust Date & Status Filter
     List<Sale> filteredSales = webPh.sales.reversed.where((s) {
-      bool dateMatch = s.date.isAfter(fromDate.subtract(const Duration(days: 1))) && 
-                       s.date.isBefore(toDate.add(const Duration(days: 1)));
-      bool searchMatch = s.billNo.toLowerCase().contains(searchQuery.toLowerCase()) || 
-                         s.partyName.toLowerCase().contains(searchQuery.toLowerCase());
-      return s.status == "Active" && dateMatch && searchMatch;
+      final sDateOnly = _dateOnly(s.date);
+      bool dateMatch = !sDateOnly.isBefore(fDateOnly) && !sDateOnly.isAfter(tDateOnly);
+      bool searchMatch = searchQuery.isEmpty ||
+          s.billNo.toLowerCase().contains(searchQuery.toLowerCase()) || 
+          s.partyName.toLowerCase().contains(searchQuery.toLowerCase());
+      bool isActive = s.status.isEmpty || s.status.toLowerCase() == "active";
+
+      return isActive && dateMatch && searchMatch;
     }).toList();
 
-    // 2. Calculations
+    // Calculations
     double totalTaxable = 0.0;
     double totalTax = 0.0;
     double netTotal = 0.0;
@@ -192,10 +195,23 @@ class _WebSaleSummaryViewState extends State<WebSaleSummaryView> {
               // --- 3. INVOICES LIST ---
               Expanded(
                 child: filteredSales.isEmpty 
-                  ? const Center(
+                  ? Center(
                       child: Padding(
-                        padding: EdgeInsets.all(40),
-                        child: Text("No sales invoices found for selected period.", style: TextStyle(color: Colors.white38, fontSize: 12)),
+                        padding: const EdgeInsets.all(40),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.receipt_long_outlined, size: 40, color: Colors.white24),
+                            const SizedBox(height: 12),
+                            Text(
+                              webPh.sales.isEmpty 
+                                ? "No invoices recorded yet in this store."
+                                : "No invoices found for selected date range (${DateFormat('dd/MM/yy').format(fromDate)} - ${DateFormat('dd/MM/yy').format(toDate)}).",
+                              style: const TextStyle(color: Colors.white38, fontSize: 12),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
                       ),
                     )
                   : ListView.builder(
@@ -221,7 +237,6 @@ class _WebSaleSummaryViewState extends State<WebSaleSummaryView> {
                             dense: true,
                             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                             
-                            // Checkbox or Bill Icon
                             leading: isSelectionMode 
                               ? Checkbox(
                                   value: selectedBillIds.contains(s.id), 
@@ -230,9 +245,9 @@ class _WebSaleSummaryViewState extends State<WebSaleSummaryView> {
                                 )
                               : Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0x262563EB),
-                                    borderRadius: BorderRadius.circular(8),
+                                  decoration: const BoxDecoration(
+                                    color: Color(0x262563EB),
+                                    borderRadius: BorderRadius.all(Radius.circular(8)),
                                   ),
                                   child: const Icon(Icons.receipt_long_rounded, color: Color(0xFF38BDF8), size: 18),
                                 ),
@@ -265,7 +280,6 @@ class _WebSaleSummaryViewState extends State<WebSaleSummaryView> {
                                 ),
                                 const SizedBox(width: 14),
                                 
-                                // Individual Bill Action Buttons
                                 if (!isSelectionMode) ...[
                                   IconButton(
                                     icon: const Icon(Icons.print_outlined, color: Color(0xFF38BDF8), size: 18), 
@@ -337,7 +351,7 @@ class _WebSaleSummaryViewState extends State<WebSaleSummaryView> {
                 ),
               ),
 
-              // --- 5. BATCH ZIP ACTION BAR (Selection Mode) ---
+              // --- 5. BATCH ZIP ACTION BAR ---
               if (isSelectionMode && selectedBillIds.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 SizedBox(
@@ -358,7 +372,6 @@ class _WebSaleSummaryViewState extends State<WebSaleSummaryView> {
             ],
           ),
 
-          // --- PROGRESS OVERLAY ---
           if (isProcessing)
             Container(
               color: Colors.black87,
@@ -402,22 +415,8 @@ class _WebSaleSummaryViewState extends State<WebSaleSummaryView> {
           "SALES REGISTER / AUDIT",
           style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900, letterSpacing: 0.5),
         ),
-        const SizedBox(width: 10),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-          decoration: BoxDecoration(
-            color: const Color(0x3310B981),
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: Colors.greenAccent),
-          ),
-          child: const Text(
-            currentTestId,
-            style: TextStyle(color: Colors.greenAccent, fontSize: 9, fontWeight: FontWeight.w900),
-          ),
-        ),
         const Spacer(),
 
-        // Summary PDF Buttons
         if (filteredSales.isNotEmpty) ...[
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
@@ -445,7 +444,6 @@ class _WebSaleSummaryViewState extends State<WebSaleSummaryView> {
           const SizedBox(width: 8),
         ],
 
-        // Audit / Multi-select Toggle Button
         if (filteredSales.isNotEmpty)
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
@@ -537,7 +535,7 @@ class _WebSaleSummaryViewState extends State<WebSaleSummaryView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: Colors.white54, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5)), 
+        Text(label, style: const TextStyle(color: Colors.white54, fontSize: 9.5, fontWeight: FontWeight.bold, letterSpacing: 0.5)), 
         const SizedBox(height: 4),
         Text("₹${val.toStringAsFixed(2)}", style: TextStyle(color: color, fontWeight: FontWeight.w900, fontSize: isNet ? 18 : 12.5)),
       ],
@@ -563,7 +561,6 @@ class _WebSaleSummaryViewState extends State<WebSaleSummaryView> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
             onPressed: () { 
-              // Revert linked challans to Pending
               if (sale.linkedChallanIds.isNotEmpty) {
                 for (var cid in sale.linkedChallanIds) {
                   int idx = webPh.saleChallans.indexWhere((ch) => ch.id == cid);
