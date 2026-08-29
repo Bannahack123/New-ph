@@ -3,16 +3,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import 'package:printing/printing.dart';
-import 'package:pdf/pdf.dart';
 
 import 'web_models.dart';
 import 'pharoah_web_manager.dart';
+import 'web_app_date_logic.dart';
 import 'web_pdf_router_service.dart';
 import 'sub_views/web_billing/web_new_sale_view.dart';
-import '../../app_date_logic.dart';
-import '../../models.dart';
-import '../../pdf/sale_report_pdf.dart';
 
 class WebSaleSummaryView extends StatefulWidget {
   final VoidCallback onBack;
@@ -43,7 +39,7 @@ class _WebSaleSummaryViewState extends State<WebSaleSummaryView> {
       final now = DateTime.now();
       toDate = DateTime(now.year, now.month, now.day);
       DateTime thirtyDaysAgo = toDate.subtract(const Duration(days: 30));
-      DateTime fyStart = AppDateLogic.getFYStart(webPh.financialYear);
+      DateTime fyStart = WebAppDateLogic.getFYStart(webPh.financialYear);
       fromDate = thirtyDaysAgo.isBefore(fyStart) ? fyStart : thirtyDaysAgo;
       _isInit = true;
     }
@@ -105,7 +101,6 @@ class _WebSaleSummaryViewState extends State<WebSaleSummaryView> {
     final fDateOnly = _dateOnly(fromDate);
     final tDateOnly = _dateOnly(toDate);
 
-    // Precise Date-Only & Active status match (Direct from live memory)
     List<Sale> filteredSales = webPh.sales.reversed.where((s) {
       final sDateOnly = _dateOnly(s.date);
       bool dateMatch = !sDateOnly.isBefore(fDateOnly) && !sDateOnly.isAfter(tDateOnly);
@@ -147,12 +142,8 @@ class _WebSaleSummaryViewState extends State<WebSaleSummaryView> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // --- 1. TOP HEADER BAR ---
               _buildHeaderBar(webPh, filteredSales, activeShop),
-
               const SizedBox(height: 16),
-
-              // --- 2. FILTER & SEARCH SECTION ---
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -195,7 +186,6 @@ class _WebSaleSummaryViewState extends State<WebSaleSummaryView> {
               
               const SizedBox(height: 16),
 
-              // --- 3. INVOICES LIST ---
               Expanded(
                 child: filteredSales.isEmpty 
                   ? Center(
@@ -330,7 +320,6 @@ class _WebSaleSummaryViewState extends State<WebSaleSummaryView> {
               
               const SizedBox(height: 16),
 
-              // --- 4. BOTTOM SUMMARY STRIP ---
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 decoration: BoxDecoration(
@@ -354,7 +343,6 @@ class _WebSaleSummaryViewState extends State<WebSaleSummaryView> {
                 ),
               ),
 
-              // --- 5. BATCH ZIP ACTION BAR ---
               if (isSelectionMode && selectedBillIds.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 SizedBox(
@@ -438,7 +426,7 @@ class _WebSaleSummaryViewState extends State<WebSaleSummaryView> {
               backgroundColor: const Color(0xFF1E293B),
               foregroundColor: Colors.cyanAccent,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: const BorderSide(color: Colors.cyanAccent)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
             icon: const Icon(Icons.download_rounded, size: 16),
             label: const Text("DOWNLOAD REPORT PDF", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10)),
@@ -504,8 +492,8 @@ class _WebSaleSummaryViewState extends State<WebSaleSummaryView> {
         DateTime? p = await showDatePicker(
           context: context,
           initialDate: d,
-          firstDate: AppDateLogic.getFYStart(fy),
-          lastDate: AppDateLogic.getFYEnd(fy),
+          firstDate: WebAppDateLogic.getFYStart(fy),
+          lastDate: WebAppDateLogic.getFYEnd(fy),
         ); 
         if (p != null) onPick(p); 
       },
@@ -564,6 +552,15 @@ class _WebSaleSummaryViewState extends State<WebSaleSummaryView> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
             onPressed: () { 
+              if (sale.linkedChallanIds.isNotEmpty) {
+                for (var cid in sale.linkedChallanIds) {
+                  int idx = webPh.saleChallans.indexWhere((ch) => ch.id == cid);
+                  if (idx != -1) {
+                    webPh.saleChallans[idx].status = "Pending";
+                  }
+                }
+              }
+
               webPh.deleteSale(sale.id); 
               Navigator.pop(c); 
 
