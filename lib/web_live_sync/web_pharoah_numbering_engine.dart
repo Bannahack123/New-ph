@@ -3,13 +3,14 @@
 import 'web_models.dart';
 
 class WebPharoahNumberingEngine {
-  /// Web sequential gap-filling number generator
+  /// Coordinated sequential gap-filling number generator matching Mobile App
   static String getNextNumber({
     required String prefix,
     required int startFrom,
     required List<dynamic> currentList,
   }) {
     List<int> existingNumbers = [];
+    String cleanPrefix = prefix.trim().toUpperCase();
 
     for (var item in currentList) {
       String idToParse = "";
@@ -37,8 +38,9 @@ class WebPharoahNumberingEngine {
         idToParse = "";
       }
 
-      if (idToParse.startsWith(prefix)) {
-        String numPart = idToParse.replaceFirst(prefix, "");
+      String upperId = idToParse.trim().toUpperCase();
+      if (upperId.startsWith(cleanPrefix)) {
+        String numPart = upperId.replaceFirst(cleanPrefix, "").trim();
         int? n = int.tryParse(numPart);
         if (n != null) existingNumbers.add(n);
       }
@@ -46,6 +48,7 @@ class WebPharoahNumberingEngine {
 
     if (existingNumbers.isNotEmpty) {
       existingNumbers.sort();
+      // Continuous gap-filling check
       for (int i = startFrom; i <= existingNumbers.last; i++) {
         if (!existingNumbers.contains(i)) {
           return "$prefix$i";

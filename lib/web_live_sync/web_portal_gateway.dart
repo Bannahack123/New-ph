@@ -13,6 +13,7 @@ import 'components/web_login_card.dart';
 // Sub Views
 import 'sub_views/web_billing/web_new_sale_view.dart';
 import 'web_purchase_entry_view.dart';
+import 'web_challan_stitcher_wizard.dart';
 import 'web_returns_view.dart';
 import 'web_challan_view.dart';
 import 'web_voucher_view.dart';
@@ -29,7 +30,7 @@ class WebPortalGateway extends StatefulWidget {
 }
 
 class _WebPortalGatewayState extends State<WebPortalGateway> {
-  String currentView = "HOME"; // Navigation Key
+  String currentView = "HOME";
   String currentViewTitle = "MAIN BUSINESS MODULES";
   String searchQuery = "";
 
@@ -75,7 +76,6 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
   Widget build(BuildContext context) {
     final webPh = Provider.of<PharoahWebManager>(context);
 
-    // 1. Unauthenticated -> Show Login Card
     if (!webPh.isAuthenticated) {
       return Scaffold(
         backgroundColor: const Color(0xFF0F172A),
@@ -91,10 +91,8 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
       );
     }
 
-    // Check if user is on Home Dashboard
     bool isHomeDashboard = currentView == "HOME";
 
-    // 2. Authenticated Workstation
     return Scaffold(
       backgroundColor: const Color(0xFF0B132B),
       appBar: WebTopBar(
@@ -104,7 +102,6 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
       body: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Sidebar ONLY visible on Main Dashboard (Auto-Hides in Billing/Masters)
           if (isHomeDashboard)
             WebRecentSidebar(
               currentView: currentView,
@@ -115,7 +112,6 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
               onClearAll: _clearAllRecents,
             ),
 
-          // Main 100% Full-Width Workspace
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
@@ -142,14 +138,21 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
       );
     }
 
-    // B. PURCHASE INWARD
+    // B. PURCHASE INWARD & PURCHASE REGISTER
     if (currentView == "GO_PURCHASE" || currentView == "GO_PUR_REG") {
       return WebPurchaseEntryView(
         onBack: () => _navigateToHub("HOME", "MAIN BUSINESS MODULES"),
       );
     }
 
-    // C. RETURNS & REVERSALS (CN / DN)
+    // C. CHALLAN TO BILL STITCHER WIZARD
+    if (currentView == "GO_STITCHER") {
+      return WebChallanStitcherWizard(
+        onBack: () => _navigateToHub("HOME", "MAIN BUSINESS MODULES"),
+      );
+    }
+
+    // D. RETURNS & REVERSALS (CN / DN / REGISTER)
     if (currentView == "GO_CN" || currentView == "GO_DN" || currentView == "GO_BREAKAGE" || currentView == "GO_RET_REG" || currentView == "RETURNS") {
       int tabIdx = 0;
       if (currentView == "GO_DN") tabIdx = 1;
@@ -161,7 +164,7 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
       );
     }
 
-    // D. DELIVERY & INWARD CHALLANS
+    // E. DELIVERY & INWARD CHALLANS
     if (currentView == "GO_CHALLAN_SALE" || currentView == "GO_CHALLAN_PUR" || currentView == "GO_CHALLAN_SALE_REG" || currentView == "GO_CHALLAN_PUR_REG" || currentView == "CHALLANS") {
       int tabIdx = 0;
       if (currentView == "GO_CHALLAN_PUR" || currentView == "GO_CHALLAN_PUR_REG") tabIdx = 1;
@@ -172,7 +175,7 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
       );
     }
 
-    // E. ACCOUNTS, DAYBOOK & VOUCHERS
+    // F. ACCOUNTS, DAYBOOK & VOUCHERS
     if (currentView == "GO_RECEIPT" || currentView == "GO_PAYMENT" || currentView == "GO_DAYBOOK" || currentView == "GO_LEDGERS" || currentView == "ACCOUNTS") {
       int tabIdx = 0;
       if (currentView == "GO_PAYMENT") tabIdx = 1;
@@ -184,28 +187,28 @@ class _WebPortalGatewayState extends State<WebPortalGateway> {
       );
     }
 
-    // F. PRODUCT / ITEM MASTER
+    // G. PRODUCT / ITEM MASTER
     if (currentView == "GO_M_ITEM" || currentView == "GO_STOCK" || currentView == "GO_SHORTAGE" || currentView == "INVENTORY") {
       return WebProductMasterView(
         onBack: () => _navigateToHub("HOME", "MAIN BUSINESS MODULES"),
       );
     }
 
-    // G. PARTY & CUSTOMER MASTER
+    // H. PARTY & CUSTOMER MASTER
     if (currentView == "GO_M_PARTY") {
       return WebPartyMasterView(
         onBack: () => _navigateToHub("HOME", "MAIN BUSINESS MODULES"),
       );
     }
 
-    // H. CENTRAL BATCH MASTER
+    // I. CENTRAL BATCH MASTER
     if (currentView == "GO_M_BATCH") {
       return WebBatchMasterView(
         onBack: () => _navigateToHub("HOME", "MAIN BUSINESS MODULES"),
       );
     }
 
-    // I. AUXILIARY MASTERS (COMPANIES, SALTS, ROUTES)
+    // J. AUXILIARY MASTERS (COMPANIES, SALTS, ROUTES)
     if (currentView == "GO_M_COMP" || currentView == "GO_M_SALT" || currentView == "GO_M_ROUTE") {
       int tabIdx = 0;
       if (currentView == "GO_M_SALT") tabIdx = 1;
